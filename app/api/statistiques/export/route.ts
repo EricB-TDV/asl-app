@@ -1,4 +1,5 @@
 import { calculerStatistiquesConsolidees } from "@/lib/statistiques";
+import { isoVersDdmmyyyy } from "@/lib/dates";
 import ExcelJS from "exceljs";
 
 export async function GET() {
@@ -8,38 +9,39 @@ export async function GET() {
   const feuille = workbook.addWorksheet("Statistiques");
 
   feuille.columns = [
-    { header: "Entreprise", key: "entreprise", width: 28 },
-    { header: "Sièges engagement", key: "engagement", width: 18 },
-    { header: "Sièges free-sale", key: "freeSale", width: 18 },
-    { header: "Total sièges", key: "total", width: 14 },
-    { header: "Ventes HT (€)", key: "ventes", width: 16 },
+    { header: "FlightDate", key: "flightDate", width: 14 },
+    { header: "OriginCode", key: "origin", width: 12 },
+    { header: "DestinationCode", key: "destination", width: 16 },
+    { header: "Nb seats occupied", key: "occupied", width: 18 },
+    { header: "Nb seats free", key: "free", width: 14 },
+    { header: "Nb seats total", key: "total", width: 14 },
+    { header: "Taux remplissage", key: "taux", width: 16 },
+    { header: "Sales HT", key: "ventes", width: 14 },
   ];
   feuille.getRow(1).font = { bold: true };
 
   for (const l of stats.lignes) {
     feuille.addRow({
-      entreprise: l.entrepriseNom,
-      engagement: l.nbEngagement,
-      freeSale: l.nbFreeSale,
-      total: l.nbEngagement + l.nbFreeSale,
-      ventes: Math.round(l.ventesHt * 100) / 100,
+      flightDate: isoVersDdmmyyyy(l.flightDate),
+      origin: l.originCode,
+      destination: l.destinationCode,
+      occupied: l.nbSeatsOccupied,
+      free: l.nbSeatsFree,
+      total: l.nbSeatsTotal,
+      taux: `${(l.tauxRemplissage * 100).toFixed(0)} %`,
+      ventes: Math.round(l.salesHt * 100) / 100,
     });
   }
 
   const ligneTotal = feuille.addRow({
-    entreprise: "Total",
-    engagement: stats.totalEngagement,
-    freeSale: stats.totalFreeSale,
-    total: stats.totalEngagement + stats.totalFreeSale,
+    flightDate: "Total",
+    occupied: stats.totalOccupes,
+    free: stats.totalLibres,
+    total: stats.totalSieges,
+    taux: `${(stats.tauxRemplissageGlobal * 100).toFixed(0)} %`,
     ventes: Math.round(stats.totalVentesHt * 100) / 100,
   });
   ligneTotal.font = { bold: true };
-
-  feuille.addRow({});
-  feuille.addRow({
-    entreprise: "Taux de remplissage global",
-    engagement: `${(stats.tauxRemplissage * 100).toFixed(1)} %`,
-  });
 
   const buffer = await workbook.xlsx.writeBuffer();
 

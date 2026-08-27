@@ -1,7 +1,7 @@
 import { calculerStatistiquesConsolidees } from "@/lib/statistiques";
+import { isoVersDdmmyyyy } from "@/lib/dates";
 
 export const dynamic = "force-dynamic";
-
 
 export default async function StatistiquesPage() {
   const stats = await calculerStatistiquesConsolidees();
@@ -14,9 +14,7 @@ export default async function StatistiquesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold mb-1">Statistiques</h1>
-          <p className="text-sm text-slate-500">
-            Vue consolidée sur l&apos;ensemble des vols (aller et retour confondus).
-          </p>
+          <p className="text-sm text-slate-500">Une ligne par vol, toutes entreprises confondues.</p>
         </div>
         <a
           href="/api/statistiques/export"
@@ -27,10 +25,10 @@ export default async function StatistiquesPage() {
       </div>
 
       <div className="grid grid-cols-3 gap-4">
-        <Carte titre="Sièges vendus" valeur={String(stats.totalEngagement + stats.totalFreeSale)} />
+        <Carte titre="Sièges vendus" valeur={String(stats.totalOccupes)} />
         <Carte
           titre="Taux de remplissage global"
-          valeur={`${(stats.tauxRemplissage * 100).toFixed(1)} %`}
+          valeur={`${(stats.tauxRemplissageGlobal * 100).toFixed(1)} %`}
         />
         <Carte titre="Ventes HT totales" valeur={formatEur(stats.totalVentesHt)} />
       </div>
@@ -38,26 +36,32 @@ export default async function StatistiquesPage() {
       <table className="w-full bg-white border border-slate-200 rounded-lg overflow-hidden text-sm">
         <thead className="bg-slate-100">
           <tr>
-            <th className="text-left px-3 py-2">Entreprise</th>
-            <th className="text-left px-3 py-2">Sièges engagement</th>
-            <th className="text-left px-3 py-2">Sièges free-sale</th>
-            <th className="text-left px-3 py-2">Total sièges</th>
-            <th className="text-left px-3 py-2">Ventes HT</th>
+            <th className="text-left px-3 py-2">FlightDate</th>
+            <th className="text-left px-3 py-2">OriginCode</th>
+            <th className="text-left px-3 py-2">DestinationCode</th>
+            <th className="text-left px-3 py-2">Nb seats occupied</th>
+            <th className="text-left px-3 py-2">Nb seats free</th>
+            <th className="text-left px-3 py-2">Nb seats total</th>
+            <th className="text-left px-3 py-2">Taux remplissage</th>
+            <th className="text-left px-3 py-2">Sales HT</th>
           </tr>
         </thead>
         <tbody>
           {stats.lignes.map((l) => (
-            <tr key={l.entrepriseId} className="border-t border-slate-100">
-              <td className="px-3 py-2">{l.entrepriseNom}</td>
-              <td className="px-3 py-2">{l.nbEngagement}</td>
-              <td className="px-3 py-2">{l.nbFreeSale}</td>
-              <td className="px-3 py-2">{l.nbEngagement + l.nbFreeSale}</td>
-              <td className="px-3 py-2">{formatEur(l.ventesHt)}</td>
+            <tr key={l.volId} className="border-t border-slate-100">
+              <td className="px-3 py-2">{isoVersDdmmyyyy(l.flightDate)}</td>
+              <td className="px-3 py-2">{l.originCode}</td>
+              <td className="px-3 py-2">{l.destinationCode}</td>
+              <td className="px-3 py-2">{l.nbSeatsOccupied}</td>
+              <td className="px-3 py-2">{l.nbSeatsFree}</td>
+              <td className="px-3 py-2">{l.nbSeatsTotal}</td>
+              <td className="px-3 py-2">{(l.tauxRemplissage * 100).toFixed(0)} %</td>
+              <td className="px-3 py-2">{formatEur(l.salesHt)}</td>
             </tr>
           ))}
           {stats.lignes.length === 0 && (
             <tr>
-              <td colSpan={5} className="px-4 py-6 text-center text-slate-400">
+              <td colSpan={8} className="px-4 py-6 text-center text-slate-400">
                 Aucune donnée pour le moment.
               </td>
             </tr>
@@ -67,9 +71,12 @@ export default async function StatistiquesPage() {
           <tfoot className="bg-slate-50 font-semibold">
             <tr className="border-t border-slate-200">
               <td className="px-3 py-2">Total</td>
-              <td className="px-3 py-2">{stats.totalEngagement}</td>
-              <td className="px-3 py-2">{stats.totalFreeSale}</td>
-              <td className="px-3 py-2">{stats.totalEngagement + stats.totalFreeSale}</td>
+              <td className="px-3 py-2"></td>
+              <td className="px-3 py-2"></td>
+              <td className="px-3 py-2">{stats.totalOccupes}</td>
+              <td className="px-3 py-2">{stats.totalLibres}</td>
+              <td className="px-3 py-2">{stats.totalSieges}</td>
+              <td className="px-3 py-2">{(stats.tauxRemplissageGlobal * 100).toFixed(0)} %</td>
               <td className="px-3 py-2">{formatEur(stats.totalVentesHt)}</td>
             </tr>
           </tfoot>

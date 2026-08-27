@@ -114,7 +114,9 @@ function Champ({
 }) {
   return (
     <div>
-      <label className="block text-xs font-medium text-slate-600 mb-1">{label}</label>
+      <label className="flex items-end min-h-[2.25rem] text-xs font-medium text-slate-600 mb-1">
+        {label}
+      </label>
       <input
         name={name}
         type={type}
@@ -137,7 +139,9 @@ function Select({
 }) {
   return (
     <div>
-      <label className="block text-xs font-medium text-slate-600 mb-1">{label}</label>
+      <label className="flex items-end min-h-[2.25rem] text-xs font-medium text-slate-600 mb-1">
+        {label}
+      </label>
       <select name={name} required className="w-full border border-slate-300 rounded px-2 py-1.5 text-sm">
         {options.map((o) => (
           <option key={o.id} value={o.id}>

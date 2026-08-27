@@ -80,3 +80,12 @@ export async function creerOuModifierAssignation(formData: FormData) {
   revalidatePath("/stocks");
   return { ok: true };
 }
+
+// Wrapper compatible avec useActionState (signature (prevState, formData)).
+export type AssignationActionState = { error?: string; ok?: boolean };
+export async function creerOuModifierAssignationAction(
+  _prevState: AssignationActionState,
+  formData: FormData
+): Promise<AssignationActionState> {
+  return creerOuModifierAssignation(formData);
+}

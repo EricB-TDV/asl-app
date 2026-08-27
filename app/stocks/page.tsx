@@ -1,19 +1,19 @@
 import { db } from "@/db";
 import { vols, entreprises, assignations, passagers } from "@/db/schema";
 import { desc, eq, sql } from "drizzle-orm";
-import { creerOuModifierAssignation } from "./actions";
+import AssignationForm from "./AssignationForm";
 
 export const dynamic = "force-dynamic";
-
 
 export default async function StocksPage() {
   const listeVols = await db.select().from(vols).orderBy(desc(vols.dateDepart));
   const listeEntreprises = await db.select().from(entreprises).orderBy(entreprises.nom);
 
-  async function creer(formData: FormData) {
-    "use server";
-    await creerOuModifierAssignation(formData);
-  }
+  const optionsVols = listeVols.map((v) => ({
+    id: v.id,
+    label: `${v.dateDepart} — ${v.numeroVol} — ${v.aeroportDepart} → ${v.aeroportArrivee} (${v.nbSieges} sièges)`,
+  }));
+  const optionsEntreprises = listeEntreprises.map((e) => ({ id: e.id, label: e.nom }));
 
   return (
     <div className="space-y-10">
@@ -24,58 +24,7 @@ export default async function StocksPage() {
         </p>
       </div>
 
-      <form action={creer} className="bg-white border border-slate-200 rounded-lg p-4 space-y-4">
-        <h2 className="font-semibold text-slate-800">Créer / mettre à jour une assignation</h2>
-
-        <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1">
-            Vol(s) — sélectionnez un ou plusieurs vols (Ctrl/Cmd + clic) pour appliquer la même
-            quantité à chacun
-          </label>
-          <select
-            name="volIds"
-            multiple
-            required
-            size={6}
-            className="w-full border border-slate-300 rounded px-2 py-1.5 text-sm"
-          >
-            {listeVols.map((v) => (
-              <option key={v.id} value={v.id}>
-                {v.dateDepart} — {v.numeroVol} — {v.aeroportDepart} → {v.aeroportArrivee} (
-                {v.nbSieges} sièges)
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1">Entreprise</label>
-          <select
-            name="entrepriseId"
-            required
-            className="w-full border border-slate-300 rounded px-2 py-1.5 text-sm"
-          >
-            {listeEntreprises.map((e) => (
-              <option key={e.id} value={e.id}>
-                {e.nom}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="grid grid-cols-3 gap-3">
-          <Champ label="Sièges engagement" name="nbEngagementTotal" type="number" defaultValue="0" />
-          <Champ label="Prix engagement HT" name="prixEngagementHt" type="number" step="0.01" />
-          <Champ label="Taxes engagement" name="taxesEngagement" type="number" step="0.01" />
-          <Champ label="Sièges free sale" name="nbFreeSaleTotal" type="number" defaultValue="0" />
-          <Champ label="Prix free sale HT" name="prixFreeSaleHt" type="number" step="0.01" />
-          <Champ label="Taxes free sale" name="taxesFreeSale" type="number" step="0.01" />
-        </div>
-
-        <button className="bg-slate-800 text-white text-sm px-4 py-2 rounded hover:bg-slate-700">
-          Créer l&apos;assignation
-        </button>
-      </form>
+      <AssignationForm vols={optionsVols} entreprises={optionsEntreprises} />
 
       <div className="space-y-6">
         {await Promise.all(listeVols.map((v) => <VolStock key={v.id} volId={v.id} />))}
@@ -142,33 +91,6 @@ async function VolStock({ volId }: { volId: number }) {
           )}
         </tbody>
       </table>
-    </div>
-  );
-}
-
-function Champ({
-  label,
-  name,
-  type = "text",
-  step,
-  defaultValue,
-}: {
-  label: string;
-  name: string;
-  type?: string;
-  step?: string;
-  defaultValue?: string;
-}) {
-  return (
-    <div>
-      <label className="block text-xs font-medium text-slate-600 mb-1">{label}</label>
-      <input
-        name={name}
-        type={type}
-        step={step}
-        defaultValue={defaultValue}
-        className="w-full border border-slate-300 rounded px-2 py-1.5 text-sm"
-      />
     </div>
   );
 }

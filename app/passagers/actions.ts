@@ -7,7 +7,7 @@ import { verifierContingentEntreprisePourAjoutPassagers } from "@/lib/rules";
 import { ddmmyyyyVersIso } from "@/lib/dates";
 import { and, eq } from "drizzle-orm";
 import { safeRevalidatePath as revalidatePath } from "@/lib/safe-revalidate";
-import Papa from "papaparse";
+import * as XLSX from "xlsx";
 
 export async function creerPassager(formData: FormData) {
   const parsed = passagerSchema.safeParse(Object.fromEntries(formData));
@@ -77,13 +77,32 @@ export async function supprimerPassager(id: number) {
   return { ok: true };
 }
 
-type LigneImport = Record<string, string>;
+/** Convertit une valeur de cellule (texte ou nombre) en texte propre. */
+function texteCellule(valeur: unknown): string {
+  if (valeur == null) return "";
+  if (valeur instanceof Date) return valeur.toString();
+  return String(valeur).trim();
+}
+
+/** Convertit une cellule de date Excel (objet Date ou texte JJ/MM/AAAA) en ISO (yyyy-mm-dd). */
+function dateCelluleVersIso(valeur: unknown): string | null {
+  if (valeur == null || valeur === "") return null;
+  if (valeur instanceof Date) {
+    const annee = valeur.getFullYear();
+    const mois = String(valeur.getMonth() + 1).padStart(2, "0");
+    const jour = String(valeur.getDate()).padStart(2, "0");
+    return `${annee}-${mois}-${jour}`;
+  }
+  return ddmmyyyyVersIso(String(valeur));
+}
+
+type LigneImport = Record<string, unknown>;
 
 /**
- * 7. Import CSV — toutes les colonnes du fichier modèle sont acceptées ;
- * seuls les champs obligatoires (CHAMPS_OBLIGATOIRES_IMPORT_CSV) sont requis.
- * Rejet total du fichier en cas d'erreur, avec message précisant ligne, champ
- * et nature du problème.
+ * 7. Import Excel (.xlsx) — toutes les colonnes du fichier modèle sont
+ * acceptées ; seuls les champs obligatoires (CHAMPS_OBLIGATOIRES_IMPORT_CSV)
+ * sont requis. Rejet total du fichier en cas d'erreur, avec message
+ * précisant ligne, champ et nature du problème.
  */
 export async function importerPassagersCsv(formData: FormData) {
   const volId = Number(formData.get("volId"));
@@ -93,18 +112,18 @@ export async function importerPassagersCsv(formData: FormData) {
   if (!volId || !entrepriseId) return { error: "Vol et entreprise requis." };
   if (!fichier || fichier.size === 0) return { error: "Aucun fichier sélectionné." };
 
-  const texte = await fichier.text();
-  const resultat = Papa.parse<LigneImport>(texte, {
-    header: true,
-    skipEmptyLines: true,
-  });
-
-  if (resultat.errors.length > 0) {
-    const e = resultat.errors[0];
-    return { error: `Erreur de lecture du fichier CSV (ligne ${e.row ?? "?"}) : ${e.message}` };
+  let lignes: LigneImport[];
+  try {
+    const buffer = Buffer.from(await fichier.arrayBuffer());
+    const classeur = XLSX.read(buffer, { type: "buffer", cellDates: true });
+    const nomFeuille = classeur.SheetNames[0];
+    if (!nomFeuille) return { error: "Le fichier Excel ne contient aucune feuille." };
+    const feuille = classeur.Sheets[nomFeuille];
+    lignes = XLSX.utils.sheet_to_json<LigneImport>(feuille, { defval: "", raw: true });
+  } catch {
+    return { error: "Impossible de lire le fichier : ce n'est pas un fichier Excel (.xlsx) valide." };
   }
 
-  const lignes = resultat.data;
   if (lignes.length === 0) return { error: "Le fichier ne contient aucune ligne de données." };
 
   const erreurs: string[] = [];
@@ -114,11 +133,15 @@ export async function importerPassagersCsv(formData: FormData) {
   let nbEngagementFichier = 0;
   let nbFreeSaleFichier = 0;
 
-  lignes.forEach((ligne, index) => {
+  lignes.forEach((ligneBrute, index) => {
     const numeroLigne = index + 2; // +1 pour l'en-tête, +1 pour un index base 1
+    const ligne: Record<string, string> = {};
+    for (const cle of Object.keys(ligneBrute)) {
+      ligne[cle] = texteCellule(ligneBrute[cle]);
+    }
 
     for (const champ of CHAMPS_OBLIGATOIRES_IMPORT_CSV) {
-      if (!ligne[champ] || String(ligne[champ]).trim() === "") {
+      if (!ligne[champ] || ligne[champ].trim() === "") {
         erreurs.push(`Ligne ${numeroLigne}, champ "${champ}" : valeur obligatoire manquante.`);
       }
     }
@@ -138,28 +161,21 @@ export async function importerPassagersCsv(formData: FormData) {
       );
     }
 
-    let dateNaissance: string | null = null;
-    let dateExpiration: string | null = null;
+    const dateNaissance = dateCelluleVersIso(ligneBrute.BirthDate);
+    if (ligne.BirthDate && !dateNaissance) {
+      erreurs.push(
+        `Ligne ${numeroLigne}, champ "BirthDate" : format de date invalide ("${ligne.BirthDate}", attendu JJ/MM/AAAA).`
+      );
+    }
+    const dateExpiration = dateCelluleVersIso(ligneBrute.DocumentExpiryDate);
+    if (ligne.DocumentExpiryDate && !dateExpiration) {
+      erreurs.push(
+        `Ligne ${numeroLigne}, champ "DocumentExpiryDate" : format de date invalide ("${ligne.DocumentExpiryDate}", attendu JJ/MM/AAAA).`
+      );
+    }
     let dateEmission: string | null = null;
-
-    if (ligne.BirthDate) {
-      dateNaissance = ddmmyyyyVersIso(ligne.BirthDate);
-      if (!dateNaissance) {
-        erreurs.push(
-          `Ligne ${numeroLigne}, champ "BirthDate" : format de date invalide ("${ligne.BirthDate}", attendu JJ/MM/AAAA).`
-        );
-      }
-    }
-    if (ligne.DocumentExpiryDate) {
-      dateExpiration = ddmmyyyyVersIso(ligne.DocumentExpiryDate);
-      if (!dateExpiration) {
-        erreurs.push(
-          `Ligne ${numeroLigne}, champ "DocumentExpiryDate" : format de date invalide ("${ligne.DocumentExpiryDate}", attendu JJ/MM/AAAA).`
-        );
-      }
-    }
     if (ligne.DocumentIssuanceDate && ligne.DocumentIssuanceDate.trim() !== "") {
-      dateEmission = ddmmyyyyVersIso(ligne.DocumentIssuanceDate);
+      dateEmission = dateCelluleVersIso(ligneBrute.DocumentIssuanceDate);
       if (!dateEmission) {
         erreurs.push(
           `Ligne ${numeroLigne}, champ "DocumentIssuanceDate" : format de date invalide ("${ligne.DocumentIssuanceDate}", attendu JJ/MM/AAAA).`

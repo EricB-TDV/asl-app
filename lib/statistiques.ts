@@ -1,38 +1,42 @@
 import { db } from "@/db";
-import { entreprises, passagers, assignations, vols } from "@/db/schema";
-import { eq, and, sql } from "drizzle-orm";
+import { passagers, assignations, vols } from "@/db/schema";
+import { eq, and, desc } from "drizzle-orm";
 
-export type LigneStatistique = {
-  entrepriseId: number;
-  entrepriseNom: string;
-  nbEngagement: number;
-  nbFreeSale: number;
-  ventesHt: number;
+export type LigneStatistiqueVol = {
+  volId: number;
+  flightDate: string;
+  originCode: string;
+  destinationCode: string;
+  nbSeatsOccupied: number;
+  nbSeatsFree: number;
+  nbSeatsTotal: number;
+  tauxRemplissage: number;
+  salesHt: number;
 };
 
 /**
- * 9. Statistiques — vue unique consolidée sur l'ensemble des vols (aller +
- * retour confondus), sans filtre vol/client : agrégat par entreprise sur
- * toute la base, plus un taux de remplissage global.
+ * 9. Statistiques — calcul par vol (une ligne par vol, aller et retour
+ * confondus), avec pour chacun : sièges occupés, sièges libres, total,
+ * taux de remplissage et ventes HT (toutes entreprises confondues).
  */
 export async function calculerStatistiquesConsolidees(): Promise<{
-  lignes: LigneStatistique[];
-  totalEngagement: number;
-  totalFreeSale: number;
+  lignes: LigneStatistiqueVol[];
+  totalOccupes: number;
+  totalLibres: number;
+  totalSieges: number;
   totalVentesHt: number;
-  totalSiegesDisponibles: number;
-  tauxRemplissage: number;
+  tauxRemplissageGlobal: number;
 }> {
-  const lignesBrutes = await db
+  const tousLesVols = await db.select().from(vols).orderBy(desc(vols.dateDepart));
+
+  const ventesBrutes = await db
     .select({
-      entrepriseId: entreprises.id,
-      entrepriseNom: entreprises.nom,
+      volId: passagers.volId,
       typeSiege: passagers.typeSiege,
       prixEngagementHt: assignations.prixEngagementHt,
       prixFreeSaleHt: assignations.prixFreeSaleHt,
     })
     .from(passagers)
-    .innerJoin(entreprises, eq(passagers.entrepriseId, entreprises.id))
     .leftJoin(
       assignations,
       and(
@@ -41,50 +45,42 @@ export async function calculerStatistiquesConsolidees(): Promise<{
       )
     );
 
-  const parEntreprise = new Map<number, LigneStatistique>();
-
-  for (const l of lignesBrutes) {
-    if (!parEntreprise.has(l.entrepriseId)) {
-      parEntreprise.set(l.entrepriseId, {
-        entrepriseId: l.entrepriseId,
-        entrepriseNom: l.entrepriseNom,
-        nbEngagement: 0,
-        nbFreeSale: 0,
-        ventesHt: 0,
-      });
-    }
-    const ligne = parEntreprise.get(l.entrepriseId)!;
-    if (l.typeSiege === "Engagement") {
-      ligne.nbEngagement += 1;
-      ligne.ventesHt += l.prixEngagementHt ? Number(l.prixEngagementHt) : 0;
-    } else {
-      ligne.nbFreeSale += 1;
-      ligne.ventesHt += l.prixFreeSaleHt ? Number(l.prixFreeSaleHt) : 0;
-    }
+  const occupesParVol = new Map<number, number>();
+  const ventesParVol = new Map<number, number>();
+  for (const v of ventesBrutes) {
+    occupesParVol.set(v.volId, (occupesParVol.get(v.volId) ?? 0) + 1);
+    const prix =
+      v.typeSiege === "Engagement"
+        ? v.prixEngagementHt
+          ? Number(v.prixEngagementHt)
+          : 0
+        : v.prixFreeSaleHt
+          ? Number(v.prixFreeSaleHt)
+          : 0;
+    ventesParVol.set(v.volId, (ventesParVol.get(v.volId) ?? 0) + prix);
   }
 
-  const lignes = Array.from(parEntreprise.values()).sort((a, b) =>
-    a.entrepriseNom.localeCompare(b.entrepriseNom)
-  );
+  const lignes: LigneStatistiqueVol[] = tousLesVols.map((v) => {
+    const occupes = occupesParVol.get(v.id) ?? 0;
+    const libres = v.nbSieges - occupes;
+    return {
+      volId: v.id,
+      flightDate: v.dateDepart,
+      originCode: v.aeroportDepart,
+      destinationCode: v.aeroportArrivee,
+      nbSeatsOccupied: occupes,
+      nbSeatsFree: libres,
+      nbSeatsTotal: v.nbSieges,
+      tauxRemplissage: v.nbSieges > 0 ? occupes / v.nbSieges : 0,
+      salesHt: ventesParVol.get(v.id) ?? 0,
+    };
+  });
 
-  const totalEngagement = lignes.reduce((s, l) => s + l.nbEngagement, 0);
-  const totalFreeSale = lignes.reduce((s, l) => s + l.nbFreeSale, 0);
-  const totalVentesHt = lignes.reduce((s, l) => s + l.ventesHt, 0);
+  const totalOccupes = lignes.reduce((s, l) => s + l.nbSeatsOccupied, 0);
+  const totalLibres = lignes.reduce((s, l) => s + l.nbSeatsFree, 0);
+  const totalSieges = lignes.reduce((s, l) => s + l.nbSeatsTotal, 0);
+  const totalVentesHt = lignes.reduce((s, l) => s + l.salesHt, 0);
+  const tauxRemplissageGlobal = totalSieges > 0 ? totalOccupes / totalSieges : 0;
 
-  const [{ totalSieges }] = await db
-    .select({ totalSieges: sql<number>`coalesce(sum(${vols.nbSieges}), 0)` })
-    .from(vols);
-
-  const totalSiegesDisponibles = Number(totalSieges);
-  const totalOccupes = totalEngagement + totalFreeSale;
-  const tauxRemplissage = totalSiegesDisponibles > 0 ? totalOccupes / totalSiegesDisponibles : 0;
-
-  return {
-    lignes,
-    totalEngagement,
-    totalFreeSale,
-    totalVentesHt,
-    totalSiegesDisponibles,
-    tauxRemplissage,
-  };
+  return { lignes, totalOccupes, totalLibres, totalSieges, totalVentesHt, tauxRemplissageGlobal };
 }

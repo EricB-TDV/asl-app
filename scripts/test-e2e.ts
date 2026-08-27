@@ -9,7 +9,9 @@ import { creerEntreprise } from "../app/entreprises/actions";
 import { creerVolUnitaire, supprimerVol } from "../app/vols/actions";
 import { creerOuModifierAssignation } from "../app/stocks/actions";
 import { creerPassager, supprimerPassager, importerPassagersCsv } from "../app/passagers/actions";
+import { calculerStatistiquesConsolidees } from "../lib/statistiques";
 import { eq } from "drizzle-orm";
+import fs from "fs";
 
 let nbOk = 0;
 let nbKo = 0;
@@ -149,7 +151,7 @@ async function main() {
   const resSuppressionOk = await supprimerVol(vol.id);
   verifier("Suppression du vol acceptée après retrait du passager", !("error" in resSuppressionOk), resSuppressionOk);
 
-  console.log("\n--- 10. Import CSV (fichier valide) ---");
+  console.log("\n--- 10. Import Excel (.xlsx, fichier valide) ---");
   const [vol2Res] = await db
     .insert(vols)
     .values({
@@ -169,23 +171,38 @@ async function main() {
     entrepriseId: entreprise.id,
     nbEngagementTotal: 5,
     nbFreeSaleTotal: 5,
+    prixEngagementHt: "350",
+    prixFreeSaleHt: "300",
   });
 
-  const csvValide = [
-    "SeatType,CivilityCode,Surname,Firstname,BirthDate,BookingNumber,Gender,NationalityCountryCode,DocumentType,DocumentNumber,DocumentIssuingCountryCode,DocumentIssuanceDate,DocumentExpiryDate,PassengerEmail,PassengerPhone,SeatRow",
-    "Engagement,MR,MARTIN,Paul,15/03/1975,,M,FR,PP,Y7654321,FR,,12/06/2031,,,",
-    "Free-sale,MRS,DURAND,Alice,22/07/1990,,F,FR,PP,Y7654322,FR,,05/09/2032,,,",
-  ].join("\n");
-
-  const fichierValide = new File([csvValide], "test.csv", { type: "text/csv" });
+  const cheminExcel = "/tmp/test_import.xlsx";
+  const bufferExcel = fs.readFileSync(cheminExcel);
+  const fichierValide = new File([bufferExcel], "test.xlsx", {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
   const fdImportOk = new FormData();
   fdImportOk.set("volId", String(vol2Res.id));
   fdImportOk.set("entrepriseId", String(entreprise.id));
   fdImportOk.set("fichier", fichierValide);
   const resImportOk = await importerPassagersCsv(fdImportOk);
-  verifier("Import CSV valide accepté (2 lignes)", !("error" in resImportOk), resImportOk);
+  verifier("Import Excel valide accepté (2 lignes)", !("error" in resImportOk), resImportOk);
 
-  console.log("\n--- 11. Import CSV invalide (champ obligatoire manquant + date invalide) ---");
+  console.log("\n--- 11. Statistiques par vol ---");
+  const stats = await calculerStatistiquesConsolidees();
+  const ligneVol2 = stats.lignes.find((l) => l.volId === vol2Res.id);
+  verifier("Une ligne de statistique existe pour le vol 5O708", !!ligneVol2, stats.lignes);
+  verifier(
+    "2 sièges occupés sur le vol 5O708 (1 engagement + 1 free-sale)",
+    ligneVol2?.nbSeatsOccupied === 2,
+    ligneVol2
+  );
+  verifier(
+    "Ventes HT = 350 (engagement) + 300 (free-sale) = 650",
+    ligneVol2?.salesHt === 650,
+    ligneVol2
+  );
+
+  console.log("\n--- 12. Import Excel invalide (champ obligatoire manquant + date invalide) ---");
   const csvInvalide = [
     "SeatType,CivilityCode,Surname,Firstname,BirthDate,BookingNumber,Gender,NationalityCountryCode,DocumentType,DocumentNumber,DocumentIssuingCountryCode,DocumentIssuanceDate,DocumentExpiryDate,PassengerEmail,PassengerPhone,SeatRow",
     "Engagement,MR,,Robert,31-12-1980,,M,FR,PP,Z0000001,FR,,2031-01-01,,,",

@@ -55,7 +55,8 @@ Puis ouvrir http://localhost:3000.
 ## Tests
 
 Un script de test de bout en bout de la logique métier (anti-surbooking,
-anti-doublon passager, contrôle de suppression de vol, import/export CSV) est
+anti-doublon passager, contrôle de suppression de vol, import Excel /
+export CSV) est
 disponible :
 
 ```bash

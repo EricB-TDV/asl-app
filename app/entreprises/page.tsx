@@ -1,14 +1,13 @@
 import { db } from "@/db";
 import { entreprises } from "@/db/schema";
-import { desc } from "drizzle-orm";
+import { asc } from "drizzle-orm";
 import { creerEntreprise, supprimerEntreprise } from "./actions";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
-
 export default async function EntreprisesPage() {
-  const liste = await db.select().from(entreprises).orderBy(desc(entreprises.createdAt));
+  const liste = await db.select().from(entreprises).orderBy(asc(entreprises.nom));
 
   async function creer(formData: FormData) {
     "use server";

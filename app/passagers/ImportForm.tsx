@@ -18,10 +18,10 @@ export default function ImportForm({
 
   return (
     <form action={formAction} className="bg-white border border-slate-200 rounded-lg p-4 space-y-3">
-      <h2 className="font-semibold text-slate-800">Importer une liste de passagers (CSV)</h2>
+      <h2 className="font-semibold text-slate-800">Importer une liste de passagers (Excel)</h2>
       <p className="text-xs text-slate-500">
-        Le fichier doit respecter le format du modèle fourni. En cas d&apos;erreur, l&apos;import
-        entier est rejeté et le détail des lignes en cause est affiché ci-dessous.
+        Le fichier doit respecter le format du modèle fourni (.xlsx). En cas d&apos;erreur,
+        l&apos;import entier est rejeté et le détail des lignes en cause est affiché ci-dessous.
       </p>
       <input type="hidden" name="volId" value={volId} />
 
@@ -41,11 +41,11 @@ export default function ImportForm({
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-slate-600 mb-1">Fichier CSV</label>
+        <label className="block text-xs font-medium text-slate-600 mb-1">Fichier Excel (.xlsx)</label>
         <input
           type="file"
           name="fichier"
-          accept=".csv"
+          accept=".xlsx"
           required
           className="w-full text-sm"
         />
