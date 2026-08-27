@@ -19,7 +19,7 @@ export default async function ExportPage() {
       <div>
         <h1 className="text-2xl font-bold mb-1">Listes ASL</h1>
         <p className="text-sm text-slate-500">
-          Export CSV au format imposé par la compagnie ASL, un fichier par vol.
+          Export Excel au format imposé par la compagnie ASL, un fichier par vol.
         </p>
       </div>
 
@@ -47,7 +47,7 @@ export default async function ExportPage() {
                   href={`/api/export/asl?volId=${v.id}`}
                   className="text-slate-700 hover:underline"
                 >
-                  Télécharger CSV
+                  Télécharger Excel
                 </a>
               </td>
             </tr>

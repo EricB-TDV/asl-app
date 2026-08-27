@@ -3,7 +3,7 @@ import { vols, entreprises, passagers } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { isoVersDdmmyyyy } from "@/lib/dates";
 import { COLONNES_EXPORT_ASL } from "@/lib/validation";
-import Papa from "papaparse";
+import ExcelJS from "exceljs";
 import { NextRequest } from "next/server";
 
 export async function GET(request: NextRequest) {
@@ -64,13 +64,29 @@ export async function GET(request: NextRequest) {
     ExcessBag: l.excessBag ?? "",
   }));
 
-  const csv = Papa.unparse(donnees, { columns: [...COLONNES_EXPORT_ASL] });
+  const workbook = new ExcelJS.Workbook();
+  const feuille = workbook.addWorksheet("Liste ASL");
 
-  const nomFichier = `ASL_${vol.numeroVol}_${vol.dateDepart}.csv`;
+  feuille.columns = COLONNES_EXPORT_ASL.map((nom) => ({ header: nom, key: nom, width: 16 }));
+  feuille.getRow(1).font = { bold: true };
 
-  return new Response(csv, {
+  for (const ligne of donnees) {
+    feuille.addRow(ligne);
+  }
+  // Toutes les valeurs (y compris les dates) restent du texte brut (format imposé par ASL),
+  // jamais de type "date" Excel natif.
+  feuille.eachRow((row) => {
+    row.eachCell((cell) => {
+      cell.numFmt = "@";
+    });
+  });
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  const nomFichier = `ASL_${vol.numeroVol}_${vol.dateDepart}.xlsx`;
+
+  return new Response(new Uint8Array(buffer), {
     headers: {
-      "Content-Type": "text/csv; charset=utf-8",
+      "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       "Content-Disposition": `attachment; filename="${nomFichier}"`,
     },
   });
