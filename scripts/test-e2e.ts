@@ -4,13 +4,15 @@
  * l'interface). Usage : npx tsx scripts/test-e2e.ts
  */
 import { db } from "../db";
-import { entreprises, vols, assignations, passagers } from "../db/schema";
+import { entreprises, vols, assignations, passagers, utilisateurs } from "../db/schema";
 import { creerEntreprise } from "../app/entreprises/actions";
 import { creerVolUnitaire, supprimerVol } from "../app/vols/actions";
 import { creerOuModifierAssignation } from "../app/stocks/actions";
 import { creerPassager, supprimerPassager, importerPassagersCsv } from "../app/passagers/actions";
+import { creerUtilisateur, supprimerUtilisateur } from "../app/utilisateurs/actions";
 import { calculerStatistiquesConsolidees } from "../lib/statistiques";
 import { eq } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import fs from "fs";
 
 let nbOk = 0;
@@ -38,6 +40,7 @@ async function main() {
   await db.delete(assignations);
   await db.delete(vols);
   await db.delete(entreprises);
+  await db.delete(utilisateurs).where(sql`email = 'second@terdav.com'`);
 
   console.log("\n--- 1. Entreprise ---");
   const resEntreprise = await creerEntreprise(formData({ nom: "Point Afrique Test" }));
@@ -216,6 +219,39 @@ async function main() {
   verifier("Import CSV invalide rejeté en totalité", "error" in resImportKo);
   if ("error" in resImportKo) {
     console.log("   Détail de l'erreur retournée :\n" + resImportKo.error);
+  }
+
+  console.log("\n--- 13. Gestion des comptes administrateurs ---");
+  // Compte de départ nécessaire (créé par create-admin.ts en amont du test complet)
+  const [adminExistant] = await db.select().from(utilisateurs).limit(1);
+  if (!adminExistant) {
+    console.log("⚠️  Aucun compte administrateur en base, section ignorée (lancez create-admin.ts d'abord).");
+  } else {
+    const fd1 = formData({ nom: "Second Admin", email: "second@terdav.com", motDePasse: "motdepasse123" });
+    const resCreation = await creerUtilisateur(fd1);
+    verifier("Création d'un 2e compte admin OK", !("error" in resCreation), resCreation);
+
+    const fd2 = formData({ nom: "Doublon", email: "second@terdav.com", motDePasse: "motdepasse123" });
+    const resDoublon = await creerUtilisateur(fd2);
+    verifier("Création rejetée si email déjà utilisé", "error" in resDoublon, resDoublon);
+
+    const [secondAdmin] = await db
+      .select()
+      .from(utilisateurs)
+      .where(eq(utilisateurs.email, "second@terdav.com"));
+
+    const resSuppressionOk = await supprimerUtilisateur(secondAdmin.id);
+    verifier("Suppression du 2e compte admin OK", !("error" in resSuppressionOk), resSuppressionOk);
+
+    const [{ count: nbRestants }] = await db
+      .select({ count: sql`count(*)` })
+      .from(utilisateurs);
+    const resSuppressionDernier = await supprimerUtilisateur(adminExistant.id);
+    verifier(
+      "Suppression du dernier compte admin refusée",
+      "error" in resSuppressionDernier,
+      { nbRestants, resSuppressionDernier }
+    );
   }
 
   console.log(`\n=== Résultat : ${nbOk} OK, ${nbKo} KO ===`);

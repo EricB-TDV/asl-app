@@ -16,6 +16,7 @@ const NAV_ITEMS = [
   { href: "/passagers", label: "Passagers" },
   { href: "/export", label: "Listes ASL" },
   { href: "/statistiques", label: "Statistiques" },
+  { href: "/utilisateurs", label: "Comptes" },
 ];
 
 async function logoutAction() {

@@ -4,6 +4,22 @@ export const entrepriseSchema = z.object({
   nom: z.string().trim().min(1, "Le nom de l'entreprise est requis."),
 });
 
+export const utilisateurCreationSchema = z.object({
+  nom: z.string().trim().min(1, "Le nom est requis."),
+  email: z.string().trim().toLowerCase().email("Email invalide."),
+  motDePasse: z.string().min(6, "Le mot de passe doit contenir au moins 6 caractères."),
+});
+
+export const utilisateurModificationSchema = z.object({
+  nom: z.string().trim().min(1, "Le nom est requis."),
+  email: z.string().trim().toLowerCase().email("Email invalide."),
+  motDePasse: z
+    .string()
+    .min(6, "Le mot de passe doit contenir au moins 6 caractères.")
+    .optional()
+    .or(z.literal("")),
+});
+
 const codePaysIso2 = z
   .string()
   .trim()
