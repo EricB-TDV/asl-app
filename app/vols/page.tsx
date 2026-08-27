@@ -4,6 +4,9 @@ import { desc } from "drizzle-orm";
 import Link from "next/link";
 import { creerVolUnitaire, creerVolsEnSerie, supprimerVol } from "./actions";
 
+export const dynamic = "force-dynamic";
+
+
 export default async function VolsPage() {
   const liste = await db.select().from(vols).orderBy(desc(vols.dateDepart));
 

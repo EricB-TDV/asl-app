@@ -2,6 +2,9 @@ import { db } from "@/db";
 import { vols, passagers } from "@/db/schema";
 import { desc, sql } from "drizzle-orm";
 
+export const dynamic = "force-dynamic";
+
+
 export default async function ExportPage() {
   const listeVols = await db.select().from(vols).orderBy(desc(vols.dateDepart));
 

@@ -4,6 +4,9 @@ import { eq } from "drizzle-orm";
 import { notFound, redirect } from "next/navigation";
 import { modifierVol } from "../actions";
 
+export const dynamic = "force-dynamic";
+
+
 export default async function ModifierVolPage({
   params,
 }: {

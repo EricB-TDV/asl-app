@@ -3,6 +3,9 @@ import { vols, entreprises, assignations, passagers } from "@/db/schema";
 import { desc, eq, sql } from "drizzle-orm";
 import { creerOuModifierAssignation } from "./actions";
 
+export const dynamic = "force-dynamic";
+
+
 export default async function StocksPage() {
   const listeVols = await db.select().from(vols).orderBy(desc(vols.dateDepart));
   const listeEntreprises = await db.select().from(entreprises).orderBy(entreprises.nom);

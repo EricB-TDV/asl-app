@@ -4,6 +4,9 @@ import { desc } from "drizzle-orm";
 import { creerEntreprise, supprimerEntreprise } from "./actions";
 import Link from "next/link";
 
+export const dynamic = "force-dynamic";
+
+
 export default async function EntreprisesPage() {
   const liste = await db.select().from(entreprises).orderBy(desc(entreprises.createdAt));
 
