@@ -9,14 +9,14 @@ export async function GET() {
   const feuille = workbook.addWorksheet("Statistiques");
 
   feuille.columns = [
-    { header: "FlightDate", key: "flightDate", width: 14 },
-    { header: "OriginCode", key: "origin", width: 12 },
-    { header: "DestinationCode", key: "destination", width: 16 },
-    { header: "Nb seats occupied", key: "occupied", width: 18 },
-    { header: "Nb seats free", key: "free", width: 14 },
-    { header: "Nb seats total", key: "total", width: 14 },
-    { header: "Taux remplissage", key: "taux", width: 16 },
-    { header: "Sales HT", key: "ventes", width: 14 },
+    { header: "Date du vol", key: "flightDate", width: 14 },
+    { header: "Origine", key: "origin", width: 12 },
+    { header: "Destination", key: "destination", width: 16 },
+    { header: "Sièges occupés", key: "occupied", width: 16 },
+    { header: "Sièges libres", key: "free", width: 14 },
+    { header: "Sièges total", key: "total", width: 14 },
+    { header: "Taux de remplissage", key: "taux", width: 18 },
+    { header: "Ventes HT", key: "ventes", width: 14 },
   ];
   feuille.getRow(1).font = { bold: true };
 

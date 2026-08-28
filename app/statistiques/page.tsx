@@ -36,14 +36,14 @@ export default async function StatistiquesPage() {
       <table className="w-full bg-white border border-slate-200 rounded-lg overflow-hidden text-sm">
         <thead className="bg-slate-100">
           <tr>
-            <th className="text-left px-3 py-2">FlightDate</th>
-            <th className="text-left px-3 py-2">OriginCode</th>
-            <th className="text-left px-3 py-2">DestinationCode</th>
-            <th className="text-left px-3 py-2">Nb seats occupied</th>
-            <th className="text-left px-3 py-2">Nb seats free</th>
-            <th className="text-left px-3 py-2">Nb seats total</th>
-            <th className="text-left px-3 py-2">Taux remplissage</th>
-            <th className="text-left px-3 py-2">Sales HT</th>
+            <th className="text-left px-3 py-2">Date du vol</th>
+            <th className="text-left px-3 py-2">Origine</th>
+            <th className="text-left px-3 py-2">Destination</th>
+            <th className="text-left px-3 py-2">Sièges occupés</th>
+            <th className="text-left px-3 py-2">Sièges libres</th>
+            <th className="text-left px-3 py-2">Sièges total</th>
+            <th className="text-left px-3 py-2">Taux de remplissage</th>
+            <th className="text-left px-3 py-2">Ventes HT</th>
           </tr>
         </thead>
         <tbody>
