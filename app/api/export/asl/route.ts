@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
     Gender: l.genre,
     NationalityCountryCode: l.nationaliteCodePays,
     DocumentTypeCode: l.typeDocument,
-    DocumentNumber: l.numeroDocument,
+    DocumentNumber: l.numeroDocument ?? "",
     DocumentIssuingCountryCode: l.documentPaysEmissionCodePays,
     DocumentIssuanceDate: l.dateEmissionDocument ? isoVersDdmmyyyy(l.dateEmissionDocument) : "",
     DocumentExpiryDate: l.dateExpirationDocument ? isoVersDdmmyyyy(l.dateExpirationDocument) : "",
