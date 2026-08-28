@@ -20,8 +20,12 @@ export default function ImportForm({
     <form action={formAction} className="bg-white border border-slate-200 rounded-lg p-4 space-y-3">
       <h2 className="font-semibold text-slate-800">Importer une liste de passagers (Excel)</h2>
       <p className="text-xs text-slate-500">
-        Le fichier doit respecter le format du modèle fourni (.xlsx). En cas d&apos;erreur,
-        l&apos;import entier est rejeté et le détail des lignes en cause est affiché ci-dessous.
+        Le fichier doit respecter le format du modèle fourni (.xlsx).
+      </p>
+      <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1.5">
+        ⚠️ Cet import <strong>remplace</strong> tous les passagers déjà enregistrés pour
+        l&apos;entreprise sélectionnée sur ce vol (y compris ceux saisis manuellement). En cas
+        d&apos;erreur dans le fichier, l&apos;import entier est annulé et rien n&apos;est modifié.
       </p>
       <input type="hidden" name="volId" value={volId} />
 

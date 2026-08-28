@@ -11,7 +11,7 @@ import { creerOuModifierAssignation } from "../app/stocks/actions";
 import { creerPassager, supprimerPassager, importerPassagersCsv } from "../app/passagers/actions";
 import { creerUtilisateur, supprimerUtilisateur } from "../app/utilisateurs/actions";
 import { calculerStatistiquesConsolidees } from "../lib/statistiques";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import fs from "fs";
 
@@ -190,13 +190,13 @@ async function main() {
   const resImportOk = await importerPassagersCsv(fdImportOk);
   verifier("Import Excel valide accepté (2 lignes)", !("error" in resImportOk), resImportOk);
 
-  console.log("\n--- 11. Statistiques par vol ---");
+  console.log("\n--- 11. Statistiques par vol (engagement = consommé) ---");
   const stats = await calculerStatistiquesConsolidees();
   const ligneVol2 = stats.lignes.find((l) => l.volId === vol2Res.id);
   verifier("Une ligne de statistique existe pour le vol 5O708", !!ligneVol2, stats.lignes);
   verifier(
-    "2 sièges occupés sur le vol 5O708 (1 engagement + 1 free-sale)",
-    ligneVol2?.nbSeatsOccupied === 2,
+    "Sièges occupés = 5 (engagement attribué, consommé) + 1 (free-sale réellement enregistré) = 6",
+    ligneVol2?.nbSeatsOccupied === 6,
     ligneVol2
   );
   verifier(
@@ -419,8 +419,63 @@ async function main() {
   await db.delete(assignations).where(eq(assignations.volId, volSup[0].id));
   await db.delete(vols).where(eq(vols.id, volSup[0].id));
 
-  console.log(`\n=== Résultat : ${nbOk} OK, ${nbKo} KO ===`);
-  process.exit(nbKo > 0 ? 1 : 0);
+  console.log("\n--- 19. Cinématique de remplacement à l'import (2e import) ---");
+  // Ajout manuel d'un passager supplémentaire pour la même entreprise/vol
+  // (doit s'ajouter, sans écraser les 2 déjà importés au test 10).
+  const resAjoutManuelAvantReimport = await creerPassager(
+    formData({
+      volId: String(vol2Res.id),
+      entrepriseId: String(entreprise.id),
+      typeSiege: "Engagement",
+      civilite: "MR",
+      nom: "AJOUTMANUEL",
+      prenom: "Avant",
+      dateNaissance: "1970-01-01",
+      genre: "M",
+      nationaliteCodePays: "FR",
+      documentPaysEmissionCodePays: "FR",
+    })
+  );
+  verifier("Ajout manuel supplémentaire OK (additif)", !("error" in resAjoutManuelAvantReimport));
+
+  const [{ count: avantReimport }] = await db
+    .select({ count: sql`count(*)` })
+    .from(passagers)
+    .where(and(eq(passagers.volId, vol2Res.id), eq(passagers.entrepriseId, entreprise.id)));
+  verifier("3 passagers pour cette entreprise avant le 2e import (2 importés + 1 manuel)", Number(avantReimport) === 3);
+
+  // Un nouvel import pour la même entreprise/vol doit tout remplacer : les 3
+  // existants (dont le manuel) disparaissent, seuls les 2 du nouveau fichier restent.
+  const csvReimport = [
+    "SeatType,CivilityCode,Surname,Firstname,BirthDate,BookingNumber,Gender,NationalityCountryCode,DocumentType,DocumentNumber,DocumentIssuingCountryCode,DocumentIssuanceDate,DocumentExpiryDate,PassengerEmail,PassengerPhone,SeatRow",
+    "Engagement,MR,NOUVEAU,Un,10/10/1980,,M,FR,PP,,FR,,,,,",
+    "Engagement,MR,NOUVEAU,Deux,11/11/1981,,M,FR,PP,,FR,,,,,",
+  ].join("\n");
+  const fichierReimport = new File([csvReimport], "reimport.csv", { type: "text/csv" });
+  const fdReimport = new FormData();
+  fdReimport.set("volId", String(vol2Res.id));
+  fdReimport.set("entrepriseId", String(entreprise.id));
+  fdReimport.set("fichier", fichierReimport);
+  const resReimport = await importerPassagersCsv(fdReimport);
+  verifier("2e import accepté", !("error" in resReimport), resReimport);
+
+  const apresReimport = await db
+    .select()
+    .from(passagers)
+    .where(and(eq(passagers.volId, vol2Res.id), eq(passagers.entrepriseId, entreprise.id)));
+  verifier("Exactement 2 passagers après le 2e import (remplacement total)", apresReimport.length === 2);
+  verifier(
+    "Le passager saisi manuellement (AJOUTMANUEL) a bien été supprimé par le 2e import",
+    !apresReimport.some((p) => p.nom === "AJOUTMANUEL"),
+    apresReimport.map((p) => p.nom)
+  );
+  verifier(
+    "Les anciens passagers importés au 1er import (MARTIN, DURAND) ont aussi été supprimés",
+    !apresReimport.some((p) => p.nom === "MARTIN" || p.nom === "DURAND"),
+    apresReimport.map((p) => p.nom)
+  );
+
+  console.log(`\n=== Résultat : ${nbOk} OK, ${nbKo} KO ===`);  process.exit(nbKo > 0 ? 1 : 0);
 }
 
 // Petit utilitaire pour chaîner un ajout sur un FormData déjà construit.

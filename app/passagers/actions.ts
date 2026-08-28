@@ -1,11 +1,11 @@
 "use server";
 
 import { db } from "@/db";
-import { passagers } from "@/db/schema";
+import { passagers, assignations } from "@/db/schema";
 import { passagerSchema, CHAMPS_OBLIGATOIRES_IMPORT_CSV } from "@/lib/validation";
 import { verifierContingentEntreprisePourAjoutPassagers } from "@/lib/rules";
 import { ddmmyyyyVersIso } from "@/lib/dates";
-import { and, eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 import { safeRevalidatePath as revalidatePath } from "@/lib/safe-revalidate";
 import * as XLSX from "xlsx";
 
@@ -266,11 +266,15 @@ export async function importerPassagersCsv(formData: FormData) {
     }
   });
 
-  // Anti-doublon contre les passagers déjà en base sur ce vol
+  // Anti-doublon contre les passagers déjà en base sur ce vol, pour une AUTRE
+  // entreprise uniquement : les passagers de CETTE entreprise sur ce vol
+  // seront de toute façon remplacés par l'import (cf. plus bas), donc ils ne
+  // constituent pas un doublon à signaler.
   if (erreurs.length === 0) {
     for (const [i, p] of aInserer.entries()) {
       const conditions = [
         eq(passagers.volId, volId),
+        ne(passagers.entrepriseId, entrepriseId),
         eq(passagers.nom, p.nom),
         eq(passagers.prenom, p.prenom),
         eq(passagers.dateNaissance, p.dateNaissance),
@@ -298,17 +302,36 @@ export async function importerPassagersCsv(formData: FormData) {
     };
   }
 
-  const controleContingent = await verifierContingentEntreprisePourAjoutPassagers({
-    volId,
-    entrepriseId,
-    nbEngagementAAjouter: nbEngagementFichier,
-    nbFreeSaleAAjouter: nbFreeSaleFichier,
-  });
-  if (!controleContingent.ok) {
-    return { error: `Fichier rejeté : ${controleContingent.message}` };
+  // 2.3/cinématique — l'import REMPLACE tous les passagers de cette entreprise
+  // sur ce vol (importés ou saisis manuellement au préalable). Le contrôle de
+  // contingent porte donc sur le contenu du fichier seul, pas en addition des
+  // passagers déjà enregistrés (ils seront supprimés).
+  const [assignationCible] = await db
+    .select()
+    .from(assignations)
+    .where(and(eq(assignations.volId, volId), eq(assignations.entrepriseId, entrepriseId)));
+  if (!assignationCible) {
+    return { error: "Fichier rejeté : aucun contingent n'est assigné à cette entreprise sur ce vol." };
+  }
+  if (nbEngagementFichier > assignationCible.nbEngagementTotal) {
+    return {
+      error: `Fichier rejeté : contingent engagement dépassé (${assignationCible.nbEngagementTotal} siège(s) attribué(s), ${nbEngagementFichier} dans le fichier).`,
+    };
+  }
+  if (nbFreeSaleFichier > assignationCible.nbFreeSaleTotal) {
+    return {
+      error: `Fichier rejeté : contingent free-sale dépassé (${assignationCible.nbFreeSaleTotal} siège(s) attribué(s), ${nbFreeSaleFichier} dans le fichier).`,
+    };
   }
 
-  await db.insert(passagers).values(aInserer);
+  await db.transaction(async (tx) => {
+    // Réinitialise tous les passagers de cette entreprise sur ce vol (importés
+    // ET saisis manuellement), avant d'insérer la nouvelle liste.
+    await tx
+      .delete(passagers)
+      .where(and(eq(passagers.volId, volId), eq(passagers.entrepriseId, entrepriseId)));
+    await tx.insert(passagers).values(aInserer);
+  });
 
   revalidatePath("/passagers");
   revalidatePath("/stocks");

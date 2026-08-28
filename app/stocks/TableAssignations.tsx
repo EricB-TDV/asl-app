@@ -8,7 +8,8 @@ export type LigneAssignationAffichage = {
   entrepriseNom: string;
   nbEngagementTotal: number;
   nbFreeSaleTotal: number;
-  occupes: number;
+  occupesEngagement: number;
+  occupesFreeSale: number;
 };
 
 export default function TableAssignations({
@@ -26,16 +27,17 @@ export default function TableAssignations({
         <thead>
           <tr className="text-slate-500 text-xs">
             <th className="text-left py-1">Entreprise</th>
-            <th className="text-left py-1">Total engagement</th>
-            <th className="text-left py-1">Total free sale</th>
-            <th className="text-left py-1">Occupés</th>
-            <th className="text-left py-1">%</th>
+            <th className="text-left py-1">Engagement</th>
+            <th className="text-left py-1">Free sale</th>
+            <th className="text-left py-1">Reste Engagement</th>
+            <th className="text-left py-1">Reste Free sale</th>
+            <th className="text-left py-1">Reste total</th>
           </tr>
         </thead>
         <tbody>
           {lignes.map((l) => {
-            const taux =
-              l.nbEngagementTotal > 0 ? Math.round((l.occupes / l.nbEngagementTotal) * 100) : 0;
+            const resteEngagement = l.nbEngagementTotal - l.occupesEngagement;
+            const resteFreeSale = l.nbFreeSaleTotal - l.occupesFreeSale;
             return (
               <tr key={l.assignationId} className="border-t border-slate-100">
                 <td className="py-1">
@@ -48,14 +50,15 @@ export default function TableAssignations({
                 </td>
                 <td className="py-1">{l.nbEngagementTotal}</td>
                 <td className="py-1">{l.nbFreeSaleTotal}</td>
-                <td className="py-1">{l.occupes}</td>
-                <td className="py-1">{taux} %</td>
+                <td className="py-1">{resteEngagement}</td>
+                <td className="py-1">{resteFreeSale}</td>
+                <td className="py-1">{resteEngagement + resteFreeSale}</td>
               </tr>
             );
           })}
           {lignes.length === 0 && (
             <tr>
-              <td colSpan={5} className="py-2 text-center text-slate-400">
+              <td colSpan={6} className="py-2 text-center text-slate-400">
                 Aucune assignation.
               </td>
             </tr>

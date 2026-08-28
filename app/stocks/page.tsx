@@ -54,19 +54,30 @@ async function VolStock({ volId }: { volId: number }) {
   const occupesParEntreprise = await db
     .select({
       entrepriseId: passagers.entrepriseId,
+      typeSiege: passagers.typeSiege,
       nb: sql<number>`count(*)`,
     })
     .from(passagers)
     .where(eq(passagers.volId, volId))
-    .groupBy(passagers.entrepriseId);
-  const mapOccupes = new Map(occupesParEntreprise.map((o) => [o.entrepriseId, Number(o.nb)]));
+    .groupBy(passagers.entrepriseId, passagers.typeSiege);
+
+  const mapOccupesEngagement = new Map<number, number>();
+  const mapOccupesFreeSale = new Map<number, number>();
+  for (const o of occupesParEntreprise) {
+    if (o.typeSiege === "Engagement") {
+      mapOccupesEngagement.set(o.entrepriseId, Number(o.nb));
+    } else {
+      mapOccupesFreeSale.set(o.entrepriseId, Number(o.nb));
+    }
+  }
 
   const lignes = lignesBrutes.map((l) => ({
     assignationId: l.assignationId,
     entrepriseNom: l.entrepriseNom,
     nbEngagementTotal: l.nbEngagementTotal,
     nbFreeSaleTotal: l.nbFreeSaleTotal,
-    occupes: mapOccupes.get(l.entrepriseId) ?? 0,
+    occupesEngagement: mapOccupesEngagement.get(l.entrepriseId) ?? 0,
+    occupesFreeSale: mapOccupesFreeSale.get(l.entrepriseId) ?? 0,
   }));
 
   const [{ occupes }] = await db
