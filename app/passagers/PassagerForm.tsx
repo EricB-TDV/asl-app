@@ -61,7 +61,7 @@ export default function PassagerForm({
             { id: "CNI", label: "CNI" },
           ]}
         />
-        <Champ label="Numéro de document" name="numeroDocument" />
+        <Champ label="Numéro de document (optionnel)" name="numeroDocument" requis={false} />
         <Champ
           label="Code pays émission document"
           name="documentPaysEmissionCodePays"
@@ -73,7 +73,7 @@ export default function PassagerForm({
           type="date"
           requis={false}
         />
-        <Champ label="Date d'expiration document" name="dateExpirationDocument" type="date" />
+        <Champ label="Date d'expiration document (optionnel)" name="dateExpirationDocument" type="date" requis={false} />
         <Champ label="N° siège (optionnel)" name="seatRow" requis={false} />
         <Champ label="Excess bag (optionnel)" name="excessBag" requis={false} />
       </div>

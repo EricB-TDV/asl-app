@@ -75,10 +75,10 @@ export const passagerSchema = z.object({
   numeroReservation: z.string().trim().optional().or(z.literal("")),
   nationaliteCodePays: codePaysIso2,
   typeDocument: z.enum(["PP", "CNI"]).default("PP"),
-  numeroDocument: z.string().trim().min(1, "Numéro de document requis."),
+  numeroDocument: z.string().trim().optional().or(z.literal("")),
   documentPaysEmissionCodePays: codePaysIso2,
   dateEmissionDocument: dateStr.optional().or(z.literal("")),
-  dateExpirationDocument: dateStr,
+  dateExpirationDocument: dateStr.optional().or(z.literal("")),
   seatRow: z.string().trim().optional().or(z.literal("")),
   excessBag: z.string().trim().optional().or(z.literal("")),
 });
@@ -115,9 +115,7 @@ export const CHAMPS_OBLIGATOIRES_IMPORT_CSV = [
   "Gender",
   "NationalityCountryCode",
   "DocumentType",
-  "DocumentNumber",
   "DocumentIssuingCountryCode",
-  "DocumentExpiryDate",
 ] as const;
 
 /** Colonnes du fichier d'export ASL (section 8), ordre imposé. */

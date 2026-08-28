@@ -89,3 +89,48 @@ export async function creerOuModifierAssignationAction(
 ): Promise<AssignationActionState> {
   return creerOuModifierAssignation(formData);
 }
+
+/**
+ * 2.4 — Modification rapide des seuls montants (nombre de sièges) d'une
+ * assignation existante, depuis la fenêtre d'édition en surimpression du
+ * tableau. Ne touche pas aux prix HT/taxes déjà enregistrés.
+ */
+export async function modifierMontantsAssignation(params: {
+  assignationId: number;
+  nbEngagementTotal: number;
+  nbFreeSaleTotal: number;
+}): Promise<AssignationActionState> {
+  const [existante] = await db
+    .select()
+    .from(assignations)
+    .where(eq(assignations.id, params.assignationId));
+  if (!existante) return { error: "Assignation introuvable." };
+
+  const controleContingent = await verifierContingentDisponible({
+    volId: existante.volId,
+    nbEngagementDemande: params.nbEngagementTotal,
+    nbFreeSaleDemande: params.nbFreeSaleTotal,
+    excludeAssignationId: existante.id,
+  });
+  if (!controleContingent.ok) return { error: controleContingent.message };
+
+  const controlePassagers = await verifierPassagersDejaEnregistres({
+    volId: existante.volId,
+    entrepriseId: existante.entrepriseId,
+    nbEngagementDemande: params.nbEngagementTotal,
+    nbFreeSaleDemande: params.nbFreeSaleTotal,
+  });
+  if (!controlePassagers.ok) return { error: controlePassagers.message };
+
+  await db
+    .update(assignations)
+    .set({
+      nbEngagementTotal: params.nbEngagementTotal,
+      nbFreeSaleTotal: params.nbFreeSaleTotal,
+      updatedAt: new Date(),
+    })
+    .where(eq(assignations.id, params.assignationId));
+
+  revalidatePath("/stocks");
+  return { ok: true };
+}

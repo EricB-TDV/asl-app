@@ -1,9 +1,11 @@
 import { db } from "@/db";
 import { vols, entreprises, passagers } from "@/db/schema";
-import { desc, eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import PassagerForm from "./PassagerForm";
 import ImportForm from "./ImportForm";
+import ZoneDangerPassagers from "./ZoneDangerPassagers";
 import { supprimerPassager } from "./actions";
+import { isoVersDdmmyyyy } from "@/lib/dates";
 
 export const dynamic = "force-dynamic";
 
@@ -14,8 +16,12 @@ export default async function PassagersPage({
   searchParams: Promise<{ vol?: string }>;
 }) {
   const { vol: volParam } = await searchParams;
-  const listeVols = await db.select().from(vols).orderBy(desc(vols.dateDepart));
+  const listeVols = await db.select().from(vols).orderBy(asc(vols.dateDepart));
   const volId = volParam ? Number(volParam) : listeVols[0]?.id;
+  const volActuel = listeVols.find((v) => v.id === volId);
+  const volLabel = volActuel
+    ? `${isoVersDdmmyyyy(volActuel.dateDepart)} — ${volActuel.numeroVol} — ${volActuel.aeroportDepart} → ${volActuel.aeroportArrivee}`
+    : "";
 
   const listeEntreprises = await db.select().from(entreprises).orderBy(entreprises.nom);
   const optionsEntreprises = listeEntreprises.map((e) => ({ id: e.id, label: e.nom }));
@@ -39,7 +45,7 @@ export default async function PassagersPage({
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold mb-1">Passagers</h1>
-        <p className="text-sm text-slate-500">Saisie manuelle ou import CSV, vol par vol.</p>
+        <p className="text-sm text-slate-500">Saisie manuelle ou import Excel, vol par vol.</p>
       </div>
 
       <form method="get" className="max-w-md flex gap-2 items-end">
@@ -52,7 +58,7 @@ export default async function PassagersPage({
           >
             {listeVols.map((v) => (
               <option key={v.id} value={v.id}>
-                {v.dateDepart} — {v.numeroVol} — {v.aeroportDepart} → {v.aeroportArrivee}
+                {isoVersDdmmyyyy(v.dateDepart)} — {v.numeroVol} — {v.aeroportDepart} → {v.aeroportArrivee}
               </option>
             ))}
           </select>
@@ -87,7 +93,7 @@ export default async function PassagersPage({
                   <td className="px-3 py-2">{p.prenom}</td>
                   <td className="px-3 py-2">{p.entrepriseNom}</td>
                   <td className="px-3 py-2">{p.typeSiege}</td>
-                  <td className="px-3 py-2">{p.numeroDocument}</td>
+                  <td className="px-3 py-2">{p.numeroDocument ?? ""}</td>
                   <td className="px-3 py-2 text-right">
                     <form
                       action={async () => {
@@ -109,6 +115,8 @@ export default async function PassagersPage({
               )}
             </tbody>
           </table>
+
+          <ZoneDangerPassagers volId={volId} volLabel={volLabel} entreprises={optionsEntreprises} />
         </>
       )}
     </div>

@@ -117,12 +117,12 @@ export const passagers = pgTable(
     typeDocument: text("type_document", { enum: ["PP", "CNI"] })
       .notNull()
       .default("PP"), // PP uniquement à ce stade, CNI prévu pour évolution future
-    numeroDocument: text("numero_document").notNull(),
+    numeroDocument: text("numero_document"), // optionnel (3.3)
     documentPaysEmissionCodePays: text("document_pays_emission_code_pays")
       .notNull()
       .references(() => pays.code),
     dateEmissionDocument: date("date_emission_document"), // optionnel
-    dateExpirationDocument: date("date_expiration_document").notNull(),
+    dateExpirationDocument: date("date_expiration_document"), // optionnel (3.3)
     seatRow: text("seat_row"), // optionnel, saisi occasionnellement
     excessBag: text("excess_bag"), // optionnel, saisi occasionnellement
     createdAt: timestamp("created_at").defaultNow().notNull(),

@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
     DocumentNumber: l.numeroDocument,
     DocumentIssuingCountryCode: l.documentPaysEmissionCodePays,
     DocumentIssuanceDate: l.dateEmissionDocument ? isoVersDdmmyyyy(l.dateEmissionDocument) : "",
-    DocumentExpiryDate: isoVersDdmmyyyy(l.dateExpirationDocument),
+    DocumentExpiryDate: l.dateExpirationDocument ? isoVersDdmmyyyy(l.dateExpirationDocument) : "",
     // Non collectés (6.2) : colonnes conservées vides pour respecter le format imposé (8.)
     PassengerEmail: "",
     PassengerPhone: "",

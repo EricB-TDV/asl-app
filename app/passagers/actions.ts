@@ -24,26 +24,31 @@ export async function creerPassager(formData: FormData) {
   });
   if (!controle.ok) return { error: controle.message };
 
+  const conditionsDoublon = [
+    eq(passagers.volId, data.volId),
+    eq(passagers.nom, data.nom),
+    eq(passagers.prenom, data.prenom),
+    eq(passagers.dateNaissance, data.dateNaissance),
+  ];
+  // Si un numéro de document est fourni, on affine la détection de doublon
+  // dessus ; sinon (document non saisi), on se base sur l'identité seule.
+  if (data.numeroDocument) {
+    conditionsDoublon.push(eq(passagers.numeroDocument, data.numeroDocument));
+  }
   const [doublon] = await db
     .select()
     .from(passagers)
-    .where(
-      and(
-        eq(passagers.volId, data.volId),
-        eq(passagers.nom, data.nom),
-        eq(passagers.prenom, data.prenom),
-        eq(passagers.dateNaissance, data.dateNaissance),
-        eq(passagers.numeroDocument, data.numeroDocument)
-      )
-    );
+    .where(and(...conditionsDoublon));
   if (doublon) {
     return { error: "Ce passager est déjà enregistré sur ce vol (doublon)." };
   }
 
   await db.insert(passagers).values({
     ...data,
+    numeroDocument: data.numeroDocument || null,
     numeroReservation: data.numeroReservation || null,
     dateEmissionDocument: data.dateEmissionDocument || null,
+    dateExpirationDocument: data.dateExpirationDocument || null,
     seatRow: data.seatRow || null,
     excessBag: data.excessBag || null,
   });
@@ -75,6 +80,32 @@ export async function supprimerPassager(id: number) {
   revalidatePath("/passagers");
   revalidatePath("/stocks");
   return { ok: true };
+}
+
+/**
+ * 3.4 — Suppression en masse. Actions sensibles : appelées uniquement après
+ * confirmation explicite côté client (avertissement + confirmation).
+ */
+export async function supprimerTousPassagersDuVol(
+  volId: number
+): Promise<{ ok: true; nbSupprimes: number } | { error: string }> {
+  const resultat = await db.delete(passagers).where(eq(passagers.volId, volId)).returning();
+  revalidatePath("/passagers");
+  revalidatePath("/stocks");
+  return { ok: true, nbSupprimes: resultat.length };
+}
+
+export async function supprimerPassagersDuVolPourEntreprise(
+  volId: number,
+  entrepriseId: number
+): Promise<{ ok: true; nbSupprimes: number } | { error: string }> {
+  const resultat = await db
+    .delete(passagers)
+    .where(and(eq(passagers.volId, volId), eq(passagers.entrepriseId, entrepriseId)))
+    .returning();
+  revalidatePath("/passagers");
+  revalidatePath("/stocks");
+  return { ok: true, nbSupprimes: resultat.length };
 }
 
 /** Convertit une valeur de cellule (texte ou nombre) en texte propre. */
@@ -201,7 +232,7 @@ export async function importerPassagersCsv(formData: FormData) {
     }
 
     // Anti-doublon interne au fichier (même vol) : nom+prénom+naissance+n°document
-    const cleDoublon = `${ligne.Surname}|${ligne.Firstname}|${ligne.BirthDate}|${ligne.DocumentNumber}`;
+    const cleDoublon = `${ligne.Surname}|${ligne.Firstname}|${ligne.BirthDate}|${ligne.DocumentNumber || ""}`;
     if (vus.has(cleDoublon)) {
       erreurs.push(
         `Ligne ${numeroLigne} : passager en double dans le fichier (déjà présent à une ligne précédente pour ce vol).`
@@ -212,7 +243,7 @@ export async function importerPassagersCsv(formData: FormData) {
     if (ligne.SeatType?.trim() === "Engagement") nbEngagementFichier += 1;
     if (ligne.SeatType?.trim() === "Free-sale") nbFreeSaleFichier += 1;
 
-    if (erreurs.length === 0 && dateNaissance && dateExpiration) {
+    if (erreurs.length === 0 && dateNaissance) {
       aInserer.push({
         volId,
         entrepriseId,
@@ -225,7 +256,7 @@ export async function importerPassagersCsv(formData: FormData) {
         numeroReservation: ligne.BookingNumber?.trim() || null,
         nationaliteCodePays: ligne.NationalityCountryCode.trim().toUpperCase(),
         typeDocument: (ligne.DocumentType?.trim() as "PP" | "CNI") || "PP",
-        numeroDocument: ligne.DocumentNumber.trim(),
+        numeroDocument: ligne.DocumentNumber?.trim() || null,
         documentPaysEmissionCodePays: ligne.DocumentIssuingCountryCode.trim().toUpperCase(),
         dateEmissionDocument: dateEmission,
         dateExpirationDocument: dateExpiration,
@@ -238,18 +269,19 @@ export async function importerPassagersCsv(formData: FormData) {
   // Anti-doublon contre les passagers déjà en base sur ce vol
   if (erreurs.length === 0) {
     for (const [i, p] of aInserer.entries()) {
+      const conditions = [
+        eq(passagers.volId, volId),
+        eq(passagers.nom, p.nom),
+        eq(passagers.prenom, p.prenom),
+        eq(passagers.dateNaissance, p.dateNaissance),
+      ];
+      if (p.numeroDocument) {
+        conditions.push(eq(passagers.numeroDocument, p.numeroDocument));
+      }
       const [existant] = await db
         .select()
         .from(passagers)
-        .where(
-          and(
-            eq(passagers.volId, volId),
-            eq(passagers.nom, p.nom),
-            eq(passagers.prenom, p.prenom),
-            eq(passagers.dateNaissance, p.dateNaissance),
-            eq(passagers.numeroDocument, p.numeroDocument)
-          )
-        );
+        .where(and(...conditions));
       if (existant) {
         erreurs.push(
           `Ligne ${i + 2} : passager "${p.nom} ${p.prenom}" déjà enregistré sur ce vol.`

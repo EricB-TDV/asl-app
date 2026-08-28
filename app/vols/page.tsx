@@ -1,14 +1,16 @@
 import { db } from "@/db";
 import { vols } from "@/db/schema";
-import { desc } from "drizzle-orm";
+import { asc } from "drizzle-orm";
 import Link from "next/link";
-import { creerVolUnitaire, creerVolsEnSerie, supprimerVol } from "./actions";
+import { creerVolUnitaire, creerVolsEnSerie } from "./actions";
+import SupprimerVolBouton from "./SupprimerVolBouton";
+import { isoVersDdmmyyyy } from "@/lib/dates";
 
 export const dynamic = "force-dynamic";
 
 
 export default async function VolsPage() {
-  const liste = await db.select().from(vols).orderBy(desc(vols.dateDepart));
+  const liste = await db.select().from(vols).orderBy(asc(vols.dateDepart));
 
   async function creerUnitaire(formData: FormData) {
     "use server";
@@ -86,21 +88,13 @@ export default async function VolsPage() {
               <td className="px-3 py-2 capitalize">{v.sens}</td>
               <td className="px-3 py-2">{v.aeroportDepart}</td>
               <td className="px-3 py-2">{v.aeroportArrivee}</td>
-              <td className="px-3 py-2">{v.dateDepart}</td>
+              <td className="px-3 py-2">{v.dateDepart ? isoVersDdmmyyyy(v.dateDepart) : ""}</td>
               <td className="px-3 py-2">{v.nbSieges}</td>
               <td className="px-3 py-2 text-right space-x-3">
                 <Link href={`/vols/${v.id}`} className="text-slate-600 hover:underline">
                   Modifier
                 </Link>
-                <form
-                  action={async () => {
-                    "use server";
-                    await supprimerVol(v.id);
-                  }}
-                  className="inline"
-                >
-                  <button className="text-red-600 hover:underline">Supprimer</button>
-                </form>
+                <SupprimerVolBouton id={v.id} numeroVol={v.numeroVol} />
               </td>
             </tr>
           ))}

@@ -36,32 +36,45 @@ export async function GET(request: NextRequest) {
 
   const rapport: string[] = [];
 
-  // 1. Migration : création des tables (idempotente : ignore les erreurs "existe déjà")
+  // 1. Migration : création/mise à jour des tables (idempotente : ignore les
+  // erreurs "existe déjà" et applique tous les fichiers de migration présents,
+  // dans l'ordre, pas seulement le premier).
   try {
-    const cheminMigration = path.join(process.cwd(), "db", "migrations", "0000_unusual_proemial_gods.sql");
-    const contenu = fs.readFileSync(cheminMigration, "utf-8");
-    const instructions = contenu
-      .split("--> statement-breakpoint")
-      .map((s) => s.trim())
-      .filter(Boolean);
+    const dossierMigrations = path.join(process.cwd(), "db", "migrations");
+    const fichiers = fs
+      .readdirSync(dossierMigrations)
+      .filter((f) => f.endsWith(".sql"))
+      .sort();
 
-    let nbExecutees = 0;
-    let nbIgnorees = 0;
-    for (const instruction of instructions) {
-      try {
-        await db.execute(sql.raw(instruction));
-        nbExecutees++;
-      } catch (err: unknown) {
-        const code = (err as { code?: string })?.code ?? (err as { cause?: { code?: string } })?.cause?.code;
-        // 42P07 = table existe déjà, 42710 = objet existe déjà (index, contrainte...)
-        if (code === "42P07" || code === "42710") {
-          nbIgnorees++;
-        } else {
-          throw err;
+    let nbExecuteesTotal = 0;
+    let nbIgnoreesTotal = 0;
+
+    for (const fichier of fichiers) {
+      const contenu = fs.readFileSync(path.join(dossierMigrations, fichier), "utf-8");
+      const instructions = contenu
+        .split("--> statement-breakpoint")
+        .map((s) => s.trim())
+        .filter(Boolean);
+
+      for (const instruction of instructions) {
+        try {
+          await db.execute(sql.raw(instruction));
+          nbExecuteesTotal++;
+        } catch (err: unknown) {
+          const code =
+            (err as { code?: string })?.code ?? (err as { cause?: { code?: string } })?.cause?.code;
+          // 42P07 = table existe déjà, 42710 = objet existe déjà (index, contrainte...)
+          if (code === "42P07" || code === "42710") {
+            nbIgnoreesTotal++;
+          } else {
+            throw err;
+          }
         }
       }
     }
-    rapport.push(`✅ Migration : ${nbExecutees} instruction(s) exécutée(s), ${nbIgnorees} déjà en place (ignorée(s)).`);
+    rapport.push(
+      `✅ Migration : ${fichiers.length} fichier(s) traité(s), ${nbExecuteesTotal} instruction(s) exécutée(s), ${nbIgnoreesTotal} déjà en place (ignorée(s)).`
+    );
   } catch (err) {
     rapport.push(`❌ Migration échouée : ${err instanceof Error ? err.message : String(err)}`);
     return texte(rapport.join("\n"), 500);

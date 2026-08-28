@@ -254,6 +254,171 @@ async function main() {
     );
   }
 
+  console.log("\n--- 14. Vols triés par ordre chronologique croissant ---");
+  const volA = await db
+    .insert(vols)
+    .values({
+      numeroVol: "5O709",
+      aeroportDepart: "CDG",
+      aeroportArrivee: "ATR",
+      dateDepart: "2027-01-01",
+      dateArrivee: "2027-01-01",
+      nbSieges: 100,
+      coutVolHt: "1000",
+      taxes: "100",
+      sens: "aller",
+    })
+    .returning();
+  const volB = await db
+    .insert(vols)
+    .values({
+      numeroVol: "5O710",
+      aeroportDepart: "CDG",
+      aeroportArrivee: "ATR",
+      dateDepart: "2026-06-01",
+      dateArrivee: "2026-06-01",
+      nbSieges: 100,
+      coutVolHt: "1000",
+      taxes: "100",
+      sens: "aller",
+    })
+    .returning();
+  const { asc } = await import("drizzle-orm");
+  const volsTries = await db.select().from(vols).orderBy(asc(vols.dateDepart));
+  const indexA = volsTries.findIndex((v) => v.id === volA[0].id);
+  const indexB = volsTries.findIndex((v) => v.id === volB[0].id);
+  verifier(
+    "Le vol du 01/06/2026 apparaît avant celui du 01/01/2027 (tri croissant)",
+    indexB < indexA,
+    { indexA, indexB }
+  );
+  await db.delete(vols).where(eq(vols.id, volA[0].id));
+  await db.delete(vols).where(eq(vols.id, volB[0].id));
+
+  console.log("\n--- 15. Message exact de blocage de suppression de vol ---");
+  const entreprisePourTest = await creerEntreprise(formData({ nom: "Test Suppression Vol" }));
+  verifier("Création entreprise OK", !("error" in entreprisePourTest));
+  const [entrepriseSup] = await db
+    .select()
+    .from(entreprises)
+    .where(eq(entreprises.nom, "Test Suppression Vol"));
+  const volSup = await db
+    .insert(vols)
+    .values({
+      numeroVol: "5O711",
+      aeroportDepart: "CDG",
+      aeroportArrivee: "ATR",
+      dateDepart: "2026-07-01",
+      dateArrivee: "2026-07-01",
+      nbSieges: 10,
+      coutVolHt: "1000",
+      taxes: "100",
+      sens: "aller",
+    })
+    .returning();
+  await db.insert(assignations).values({
+    volId: volSup[0].id,
+    entrepriseId: entrepriseSup.id,
+    nbEngagementTotal: 5,
+    nbFreeSaleTotal: 5,
+  });
+  await creerPassager(
+    formData({
+      volId: String(volSup[0].id),
+      entrepriseId: String(entrepriseSup.id),
+      typeSiege: "Engagement",
+      civilite: "MR",
+      nom: "TESTSUP",
+      prenom: "Jean",
+      dateNaissance: "1980-01-01",
+      genre: "M",
+      nationaliteCodePays: "FR",
+      documentPaysEmissionCodePays: "FR",
+    })
+  );
+  const resSuppressionMessage = await supprimerVol(volSup[0].id);
+  verifier(
+    "Message exact retourné lors du blocage de suppression",
+    "error" in resSuppressionMessage &&
+      resSuppressionMessage.error ===
+        "Des passagers sont enregistrés sur ce vol, les supprimer avant de supprimer le vol.",
+    resSuppressionMessage
+  );
+
+  console.log("\n--- 16. Passager sans numéro de document ni date d'expiration (3.3) ---");
+  const resPassagerSansDoc = await creerPassager(
+    formData({
+      volId: String(volSup[0].id),
+      entrepriseId: String(entrepriseSup.id),
+      typeSiege: "Free-sale",
+      civilite: "MRS",
+      nom: "SANSDOC",
+      prenom: "Marie",
+      dateNaissance: "1985-05-05",
+      genre: "F",
+      nationaliteCodePays: "FR",
+      documentPaysEmissionCodePays: "FR",
+    })
+  );
+  verifier(
+    "Passager créé sans numéro de document ni date d'expiration",
+    !("error" in resPassagerSansDoc),
+    resPassagerSansDoc
+  );
+
+  console.log("\n--- 17. Modification rapide des montants d'une assignation (2.4) ---");
+  const { modifierMontantsAssignation } = await import("../app/stocks/actions");
+  const [assignationSup] = await db
+    .select()
+    .from(assignations)
+    .where(eq(assignations.volId, volSup[0].id));
+  const resModifMontants = await modifierMontantsAssignation({
+    assignationId: assignationSup.id,
+    nbEngagementTotal: 8,
+    nbFreeSaleTotal: 2,
+  });
+  verifier("Modification des montants acceptée", !("error" in resModifMontants), resModifMontants);
+  const resModifMontantsTropBas = await modifierMontantsAssignation({
+    assignationId: assignationSup.id,
+    nbEngagementTotal: 0,
+    nbFreeSaleTotal: 0,
+  });
+  verifier(
+    "Modification refusée si en-dessous des passagers déjà enregistrés (1 engagement enregistré)",
+    "error" in resModifMontantsTropBas,
+    resModifMontantsTropBas
+  );
+
+  console.log("\n--- 18. Suppression en masse des passagers (3.4) ---");
+  const { supprimerTousPassagersDuVol, supprimerPassagersDuVolPourEntreprise } = await import(
+    "../app/passagers/actions"
+  );
+  const [{ count: avantSuppression }] = await db
+    .select({ count: sql`count(*)` })
+    .from(passagers)
+    .where(eq(passagers.volId, volSup[0].id));
+  verifier("2 passagers présents avant suppression en masse", Number(avantSuppression) === 2);
+
+  const resSuppressionEntreprise = await supprimerPassagersDuVolPourEntreprise(
+    volSup[0].id,
+    entrepriseSup.id
+  );
+  verifier(
+    "Suppression par entreprise : 2 passagers supprimés",
+    "nbSupprimes" in resSuppressionEntreprise && resSuppressionEntreprise.nbSupprimes === 2,
+    resSuppressionEntreprise
+  );
+
+  const resSuppressionVolVide = await supprimerTousPassagersDuVol(volSup[0].id);
+  verifier(
+    "Suppression totale sur un vol déjà vide ne plante pas (0 supprimé)",
+    "nbSupprimes" in resSuppressionVolVide && resSuppressionVolVide.nbSupprimes === 0,
+    resSuppressionVolVide
+  );
+
+  await db.delete(assignations).where(eq(assignations.volId, volSup[0].id));
+  await db.delete(vols).where(eq(vols.id, volSup[0].id));
+
   console.log(`\n=== Résultat : ${nbOk} OK, ${nbKo} KO ===`);
   process.exit(nbKo > 0 ? 1 : 0);
 }

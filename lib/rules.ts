@@ -154,7 +154,7 @@ export async function verifierVolSansPassagers(
   if (Number(count) > 0) {
     return {
       ok: false,
-      message: `Suppression impossible : ${count} passager(s) sont encore enregistrés sur ce vol. Supprimez-les d'abord.`,
+      message: "Des passagers sont enregistrés sur ce vol, les supprimer avant de supprimer le vol.",
     };
   }
   return { ok: true };
