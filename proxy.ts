@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { jwtVerify } from "jose";
 
 const COOKIE_NAME = "asl_session";
-const PUBLIC_PATHS = ["/login", "/api/setup"];
+const PUBLIC_PATHS = ["/login", "/api/setup", "/api/backup"];
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -32,6 +32,6 @@ export const config = {
      * - assets (images, favicon)
      * - routes d'API d'authentification (login gère lui-même)
      */
-    "/((?!_next/static|_next/image|favicon.ico|api/auth|api/setup).*)",
+    "/((?!_next/static|_next/image|favicon.ico|api/auth|api/setup|api/backup).*)",
   ],
 };
