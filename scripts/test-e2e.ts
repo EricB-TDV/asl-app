@@ -11,7 +11,7 @@ import { creerOuModifierAssignation } from "../app/stocks/actions";
 import { creerPassager, supprimerPassager, importerPassagersCsv } from "../app/passagers/actions";
 import { creerUtilisateur, supprimerUtilisateur } from "../app/utilisateurs/actions";
 import { calculerStatistiquesConsolidees } from "../lib/statistiques";
-import { eq, and } from "drizzle-orm";
+import { eq, and, ne } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import fs from "fs";
 
@@ -474,6 +474,58 @@ async function main() {
     !apresReimport.some((p) => p.nom === "MARTIN" || p.nom === "DURAND"),
     apresReimport.map((p) => p.nom)
   );
+
+  console.log("\n--- 20. Modification d'un passager existant ---");
+  const [passagerAModifier] = await db
+    .select()
+    .from(passagers)
+    .where(eq(passagers.volId, vol2Res.id));
+  const fdModif = formData({
+    volId: String(vol2Res.id),
+    entrepriseId: String(entreprise.id),
+    typeSiege: passagerAModifier.typeSiege,
+    civilite: "MRS",
+    nom: "NOUVEAUNOM",
+    prenom: passagerAModifier.prenom,
+    dateNaissance: passagerAModifier.dateNaissance,
+    genre: passagerAModifier.genre,
+    nationaliteCodePays: passagerAModifier.nationaliteCodePays,
+    typeDocument: passagerAModifier.typeDocument,
+    documentPaysEmissionCodePays: passagerAModifier.documentPaysEmissionCodePays,
+  });
+  const { modifierPassager } = await import("../app/passagers/actions");
+  const resModifPassager = await modifierPassager(passagerAModifier.id, fdModif);
+  verifier("Modification du passager acceptée", !("error" in resModifPassager), resModifPassager);
+  const [passagerModifie] = await db
+    .select()
+    .from(passagers)
+    .where(eq(passagers.id, passagerAModifier.id));
+  verifier(
+    "Le nom a bien été mis à jour en base",
+    passagerModifie.nom === "NOUVEAUNOM" && passagerModifie.civilite === "MRS",
+    passagerModifie
+  );
+
+  console.log("\n--- 21. Modification refusée si doublon avec un autre passager du même vol ---");
+  const [autrePassagerDuVol] = await db
+    .select()
+    .from(passagers)
+    .where(and(eq(passagers.volId, vol2Res.id), ne(passagers.id, passagerAModifier.id)));
+  const fdModifDoublon = formData({
+    volId: String(vol2Res.id),
+    entrepriseId: String(entreprise.id),
+    typeSiege: passagerAModifier.typeSiege,
+    civilite: "MR",
+    nom: autrePassagerDuVol.nom,
+    prenom: autrePassagerDuVol.prenom,
+    dateNaissance: autrePassagerDuVol.dateNaissance,
+    genre: "M",
+    nationaliteCodePays: "FR",
+    typeDocument: "PP",
+    documentPaysEmissionCodePays: "FR",
+  });
+  const resModifDoublon = await modifierPassager(passagerAModifier.id, fdModifDoublon);
+  verifier("Modification refusée en cas de doublon avec un autre passager", "error" in resModifDoublon, resModifDoublon);
 
   console.log(`\n=== Résultat : ${nbOk} OK, ${nbKo} KO ===`);  process.exit(nbKo > 0 ? 1 : 0);
 }

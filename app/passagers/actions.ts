@@ -58,6 +58,81 @@ export async function creerPassager(formData: FormData) {
   return { ok: true };
 }
 
+/**
+ * Modification d'un passager existant depuis la fenêtre modale de l'écran
+ * Passagers. Mêmes contrôles que la création (anti-surbooking, anti-doublon),
+ * mais en excluant le passager lui-même des vérifications.
+ */
+export async function modifierPassager(id: number, formData: FormData) {
+  const parsed = passagerSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0].message };
+  }
+  const data = parsed.data;
+
+  const [existant] = await db.select().from(passagers).where(eq(passagers.id, id));
+  if (!existant) return { error: "Passager introuvable." };
+
+  // Contrôle de contingent uniquement si l'entreprise ou le type de siège
+  // change (sinon le passager reste dans son enveloppe déjà comptée).
+  const memeAffectation =
+    existant.entrepriseId === data.entrepriseId && existant.typeSiege === data.typeSiege;
+  if (!memeAffectation) {
+    const controle = await verifierContingentEntreprisePourAjoutPassagers({
+      volId: existant.volId,
+      entrepriseId: data.entrepriseId,
+      nbEngagementAAjouter: data.typeSiege === "Engagement" ? 1 : 0,
+      nbFreeSaleAAjouter: data.typeSiege === "Free-sale" ? 1 : 0,
+    });
+    if (!controle.ok) return { error: controle.message };
+  }
+
+  const conditionsDoublon = [
+    eq(passagers.volId, existant.volId),
+    ne(passagers.id, id),
+    eq(passagers.nom, data.nom),
+    eq(passagers.prenom, data.prenom),
+    eq(passagers.dateNaissance, data.dateNaissance),
+  ];
+  if (data.numeroDocument) {
+    conditionsDoublon.push(eq(passagers.numeroDocument, data.numeroDocument));
+  }
+  const [doublon] = await db
+    .select()
+    .from(passagers)
+    .where(and(...conditionsDoublon));
+  if (doublon) {
+    return { error: "Ce passager est déjà enregistré sur ce vol (doublon)." };
+  }
+
+  await db
+    .update(passagers)
+    .set({
+      entrepriseId: data.entrepriseId,
+      typeSiege: data.typeSiege,
+      civilite: data.civilite,
+      nom: data.nom,
+      prenom: data.prenom,
+      dateNaissance: data.dateNaissance,
+      genre: data.genre,
+      numeroReservation: data.numeroReservation || null,
+      nationaliteCodePays: data.nationaliteCodePays,
+      typeDocument: data.typeDocument,
+      numeroDocument: data.numeroDocument || null,
+      documentPaysEmissionCodePays: data.documentPaysEmissionCodePays,
+      dateEmissionDocument: data.dateEmissionDocument || null,
+      dateExpirationDocument: data.dateExpirationDocument || null,
+      seatRow: data.seatRow || null,
+      excessBag: data.excessBag || null,
+      updatedAt: new Date(),
+    })
+    .where(eq(passagers.id, id));
+
+  revalidatePath("/passagers");
+  revalidatePath("/stocks");
+  return { ok: true };
+}
+
 // Wrappers compatibles avec useActionState (signature (prevState, formData)).
 export type PassagerActionState = { error?: string; ok?: boolean };
 export async function creerPassagerAction(
@@ -65,6 +140,14 @@ export async function creerPassagerAction(
   formData: FormData
 ): Promise<PassagerActionState> {
   return creerPassager(formData);
+}
+
+export async function modifierPassagerAction(
+  id: number,
+  _prevState: PassagerActionState,
+  formData: FormData
+): Promise<PassagerActionState> {
+  return modifierPassager(id, formData);
 }
 
 export type ImportActionState = { error?: string; ok?: boolean; nbImportes?: number };

@@ -4,7 +4,7 @@ import { asc, eq } from "drizzle-orm";
 import PassagerForm from "./PassagerForm";
 import ImportForm from "./ImportForm";
 import ZoneDangerPassagers from "./ZoneDangerPassagers";
-import { supprimerPassager } from "./actions";
+import TablePassagers from "./TablePassagers";
 import { isoVersDdmmyyyy } from "@/lib/dates";
 
 export const dynamic = "force-dynamic";
@@ -30,11 +30,24 @@ export default async function PassagersPage({
     ? await db
         .select({
           id: passagers.id,
+          volId: passagers.volId,
+          entrepriseId: passagers.entrepriseId,
+          entrepriseNom: entreprises.nom,
+          typeSiege: passagers.typeSiege,
+          civilite: passagers.civilite,
           nom: passagers.nom,
           prenom: passagers.prenom,
-          typeSiege: passagers.typeSiege,
-          entrepriseNom: entreprises.nom,
+          dateNaissance: passagers.dateNaissance,
+          genre: passagers.genre,
+          numeroReservation: passagers.numeroReservation,
+          nationaliteCodePays: passagers.nationaliteCodePays,
+          typeDocument: passagers.typeDocument,
           numeroDocument: passagers.numeroDocument,
+          documentPaysEmissionCodePays: passagers.documentPaysEmissionCodePays,
+          dateEmissionDocument: passagers.dateEmissionDocument,
+          dateExpirationDocument: passagers.dateExpirationDocument,
+          seatRow: passagers.seatRow,
+          excessBag: passagers.excessBag,
         })
         .from(passagers)
         .innerJoin(entreprises, eq(passagers.entrepriseId, entreprises.id))
@@ -75,46 +88,7 @@ export default async function PassagersPage({
             <ImportForm volId={volId} entreprises={optionsEntreprises} />
           </div>
 
-          <table className="w-full bg-white border border-slate-200 rounded-lg overflow-hidden text-sm">
-            <thead className="bg-slate-100">
-              <tr>
-                <th className="text-left px-3 py-2">Nom</th>
-                <th className="text-left px-3 py-2">Prénom</th>
-                <th className="text-left px-3 py-2">Entreprise</th>
-                <th className="text-left px-3 py-2">Type de siège</th>
-                <th className="text-left px-3 py-2">N° document</th>
-                <th className="px-3 py-2 w-24"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {listePassagers.map((p) => (
-                <tr key={p.id} className="border-t border-slate-100">
-                  <td className="px-3 py-2">{p.nom}</td>
-                  <td className="px-3 py-2">{p.prenom}</td>
-                  <td className="px-3 py-2">{p.entrepriseNom}</td>
-                  <td className="px-3 py-2">{p.typeSiege}</td>
-                  <td className="px-3 py-2">{p.numeroDocument ?? ""}</td>
-                  <td className="px-3 py-2 text-right">
-                    <form
-                      action={async () => {
-                        "use server";
-                        await supprimerPassager(p.id);
-                      }}
-                    >
-                      <button className="text-red-600 hover:underline text-xs">Supprimer</button>
-                    </form>
-                  </td>
-                </tr>
-              ))}
-              {listePassagers.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="px-4 py-6 text-center text-slate-400">
-                    Aucun passager sur ce vol.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+          <TablePassagers lignes={listePassagers} entreprises={optionsEntreprises} />
 
           <ZoneDangerPassagers volId={volId} volLabel={volLabel} entreprises={optionsEntreprises} />
         </>
