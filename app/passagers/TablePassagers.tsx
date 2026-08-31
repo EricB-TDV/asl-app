@@ -35,16 +35,16 @@ export default function TablePassagers({
         <tbody>
           {lignes.map((p) => (
             <tr key={p.id} className="border-t border-slate-100">
-              <td className="px-3 py-2">{p.nom}</td>
-              <td className="px-3 py-2">{p.prenom}</td>
               <td className="px-3 py-2">
                 <button
                   onClick={() => setPassagerEnEdition(p)}
                   className="underline decoration-slate-400 hover:decoration-slate-800 text-left"
                 >
-                  {p.entrepriseNom}
+                  {p.nom}
                 </button>
               </td>
+              <td className="px-3 py-2">{p.prenom}</td>
+              <td className="px-3 py-2">{p.entrepriseNom}</td>
               <td className="px-3 py-2">{p.typeSiege}</td>
               <td className="px-3 py-2">{p.numeroDocument ?? ""}</td>
               <td className="px-3 py-2 text-right">
