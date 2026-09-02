@@ -140,6 +140,22 @@ export const passagers = pgTable(
   })
 );
 
+/**
+ * Paramètres financiers globaux (bilan financier, section 7). Table
+ * "singleton" : une seule ligne (id fixé à 1), mise à jour en place.
+ */
+export const parametresFinanciers = pgTable("parametres_financiers", {
+  id: integer("id").primaryKey().default(1),
+  coutsAsl: numeric("couts_asl", { precision: 12, scale: 2 }),
+  revisionCarburant: numeric("revision_carburant", { precision: 12, scale: 2 }),
+  apportMauritanie: numeric("apport_mauritanie", { precision: 12, scale: 2 }),
+  fraisAdministratifs: numeric("frais_administratifs", { precision: 12, scale: 2 }),
+  fraisAeroportMauritanie: numeric("frais_aeroport_mauritanie", { precision: 12, scale: 2 }),
+  saisonDebut: date("saison_debut"),
+  saisonFin: date("saison_fin"),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // -------- Relations (pour les requêtes avec jointures via Drizzle) --------
 
 export const volsRelations = relations(vols, ({ many }) => ({

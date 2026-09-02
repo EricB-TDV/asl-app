@@ -91,14 +91,18 @@ export async function creerOuModifierAssignationAction(
 }
 
 /**
- * 2.4 — Modification rapide des seuls montants (nombre de sièges) d'une
- * assignation existante, depuis la fenêtre d'édition en surimpression du
- * tableau. Ne touche pas aux prix HT/taxes déjà enregistrés.
+ * 2.4 (modification 1) — Modification rapide d'une assignation existante
+ * depuis la fenêtre d'édition en surimpression du tableau : nombre de
+ * sièges (engagement/free-sale) ET prix HT / taxes associés.
  */
 export async function modifierMontantsAssignation(params: {
   assignationId: number;
   nbEngagementTotal: number;
   nbFreeSaleTotal: number;
+  prixEngagementHt: number | null;
+  taxesEngagement: number | null;
+  prixFreeSaleHt: number | null;
+  taxesFreeSale: number | null;
 }): Promise<AssignationActionState> {
   const [existante] = await db
     .select()
@@ -127,6 +131,10 @@ export async function modifierMontantsAssignation(params: {
     .set({
       nbEngagementTotal: params.nbEngagementTotal,
       nbFreeSaleTotal: params.nbFreeSaleTotal,
+      prixEngagementHt: params.prixEngagementHt != null ? String(params.prixEngagementHt) : null,
+      taxesEngagement: params.taxesEngagement != null ? String(params.taxesEngagement) : null,
+      prixFreeSaleHt: params.prixFreeSaleHt != null ? String(params.prixFreeSaleHt) : null,
+      taxesFreeSale: params.taxesFreeSale != null ? String(params.taxesFreeSale) : null,
       updatedAt: new Date(),
     })
     .where(eq(assignations.id, params.assignationId));

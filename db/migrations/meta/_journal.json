@@ -15,6 +15,13 @@
       "when": 1787909577056,
       "tag": "0001_nasty_alex_wilder",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788361062394,
+      "tag": "0002_easy_cargill",
+      "breakpoints": true
     }
   ]
 }

@@ -68,9 +68,13 @@ Une ligne par couple (vol, entreprise). `id`, `vol_id`, `entreprise_id`, `nb_eng
 
 Index unique `(vol_id, nom, prenom, date_naissance, numero_document)` — protection anti-doublon au niveau base, complétée par des vérifications applicatives (voir section 5) car `numero_document` étant désormais nullable, deux valeurs `NULL` ne sont pas considérées identiques par PostgreSQL.
 
+### `parametres_financiers` (singleton, bilan financier)
+`id` (toujours 1), `couts_asl`, `revision_carburant`, `apport_mauritanie`, `frais_administratifs`, `frais_aeroport_mauritanie` (5 montants en euros, saisis par l'administrateur), `saison_debut`, `saison_fin` (dates configurables déterminant les colonnes du bilan mensuel), `updated_at`.
+
 ### Migrations
 - `0000_unusual_proemial_gods.sql` : création initiale des 6 tables
 - `0001_nasty_alex_wilder.sql` : passage de `numero_document` et `date_expiration_document` en colonnes nullables
+- `0002_easy_cargill.sql` : ajout de la table `parametres_financiers`
 
 **Important** : les migrations Drizzle générées ne s'appliquent **pas automatiquement** au déploiement Clever Cloud. Voir section 7 (Procédures) pour la marche à suivre.
 
@@ -103,9 +107,10 @@ CRUD simple. Liste triée par ordre alphabétique. Suppression bloquée si des p
 - Une nouvelle assignation sur un couple (vol, entreprise) déjà existant **écrase** l'ancienne (ne s'additionne pas)
 - **Anti-surbooking** : le total attribué (engagement + free-sale, toutes entreprises) ne peut jamais dépasser `nb_sieges` du vol — contrôle bloquant avec message d'erreur affiché
 - **Anti-sous-attribution** : une modification d'assignation est refusée si l'entreprise a déjà plus de passagers enregistrés (par type de siège) que la nouvelle quantité proposée
-- Tableau par vol, colonnes : **Engagement**, **Free sale**, **Reste Engagement** (= Engagement − passagers enregistrés en engagement), **Reste Free sale** (idem), **Reste total**
-- Clic sur le nom d'une entreprise (souligné) → fenêtre modale permettant de modifier rapidement le nombre de sièges (engagement/free-sale) sans toucher aux prix, avec les mêmes contrôles anti-surbooking/anti-sous-attribution
+- Tableau par vol, colonnes (dans cet ordre) : **Engagement**, **Reste Eng.** (= Engagement − passagers enregistrés en engagement), **Free sale**, **Reste F.S.** (idem), **Reste Total**
+- Clic sur le nom d'une entreprise (souligné) → fenêtre modale permettant de modifier rapidement le nombre de sièges (engagement/free-sale) **et les prix HT/taxes associés** (4 champs : prix engagement HT, prix free-sale HT, taxes engagement, taxes free-sale), avec les mêmes contrôles anti-surbooking/anti-sous-attribution
 - Liste des vols triée chronologiquement croissant, dates en `DD/MM/AAAA`
+- **Affichage aller/retour côte à côte** : les vols sont appariés par date de départ (un aller et un retour à la même date apparaissent sur la même ligne, en deux colonnes) ; si un aller ou un retour manque à une date, la case correspondante reste vide plutôt que de désaligner le tableau
 
 ### Passagers (`/passagers`)
 - Sélecteur de vol trié chronologiquement croissant, dates en `DD/MM/AAAA`
@@ -121,14 +126,37 @@ CRUD simple. Liste triée par ordre alphabétique. Suppression bloquée si des p
 Un fichier Excel (.xlsx, remplace l'ancien CSV) par vol, format de colonnes **imposé par ASL, à respecter à l'identique** (21 colonnes : Brand, FlightDate, FlightNumber, OriginCode, DestinationCode, CivilityCode, Surname, FirstName, BirthDate, BookingNumber, Gender, NationalityCountryCode, DocumentTypeCode, DocumentNumber, DocumentIssuingCountryCode, DocumentIssuanceDate, DocumentExpiryDate, PassengerEmail, PassengerPhone, SeatRow, ExcessBag). Dates en texte `DD/MM/AAAA` (jamais en type date Excel natif). `PassengerEmail`/`PassengerPhone` toujours vides (non collectés). Valeurs manquantes affichées en chaîne vide, jamais `null`/`None`.
 
 ### Statistiques (`/statistiques`)
-Vue consolidée **par vol** (une ligne par vol, tous les vols, aller et retour confondus — pas de filtre). Colonnes en français : Date du vol, Origine, Destination, Sièges occupés, Sièges libres, Sièges total, Taux de remplissage, Ventes HT. Triée chronologiquement croissant.
+Écran désormais organisé en **4 onglets** (client component `StatistiquesTabs.tsx`, contenu pré-rendu côté serveur puis affiché/masqué en CSS) :
 
-**Règle de calcul importante** : un siège en **engagement** est considéré comme *consommé* dès qu'il est attribué à une entreprise (contingent payé), indépendamment du nombre de passagers réellement enregistrés dessus. Un siège **free-sale** ne compte comme occupé que s'il est effectivement utilisé par un passager enregistré.
-→ `Sièges occupés (par vol) = somme des contingents engagement attribués sur ce vol (toutes entreprises) + nombre de passagers réellement enregistrés en free-sale sur ce vol`
+**Onglet "Vue globale"** : vue consolidée par vol (une ligne par vol, tous les vols, aller et retour confondus). Colonnes en français : Date du vol, Origine, Destination, **Sièges engagés**, **Sièges occupés** (nouveau — décompte réel des passagers enregistrés, tous types confondus), Sièges libres, Sièges total, Taux de remplissage, Ventes HT. Triée chronologiquement croissant.
 
-Les ventes HT, elles, restent basées sur les passagers réellement enregistrés (au prix défini dans l'assignation correspondante) — cette règle n'a pas changé.
+**Règle de calcul « Sièges engagés »** (inchangée) : un siège en **engagement** est considéré comme *consommé* dès qu'il est attribué à une entreprise (contingent payé), indépendamment du nombre de passagers réellement enregistrés dessus. Un siège **free-sale** ne compte comme engagé que s'il est effectivement utilisé par un passager enregistré.
+→ `Sièges engagés (par vol) = somme des contingents engagement attribués sur ce vol (toutes entreprises) + nombre de passagers réellement enregistrés en free-sale sur ce vol`
 
-Export Excel disponible, mêmes règles de calcul et mêmes en-têtes en français.
+**Règle de calcul « Sièges occupés »** (nouveau) : décompte physique réel, tous types de siège confondus (`COUNT(passagers)` groupé par vol).
+
+**Règle de calcul « Ventes HT »** (révisée) : pour chaque entreprise ayant un contingent sur le vol, `(contingent engagement total × prix engagement HT) + (nombre de passagers réellement enregistrés en free-sale pour cette entreprise × prix free-sale HT)`. L'engagement est facturé en totalité, qu'il soit utilisé ou non ; le free-sale n'est facturé qu'à l'usage réel. Somme sur toutes les entreprises du vol.
+
+**Onglets "Vue entreprise sièges engagés" / "Vue entreprise sièges réels"** : deux tableaux côte à côte (Aller / Retour), une ligne par date, une colonne par entreprise ayant un contingent dans ce sens, plus Total / Stock / Reste / %. Réutilisent la même fonction de calcul (`calculerVuesParEntreprise`), seule la métrique affichée diffère :
+- *Sièges engagés* par entreprise = contingent engagement total de l'entreprise + ses passagers free-sale réellement enregistrés
+- *Sièges réels* par entreprise = tous ses passagers réellement enregistrés (engagement + free-sale)
+
+**Onglet "Bilan financier"** : voir section dédiée ci-dessous.
+
+Export Excel (vue globale uniquement) mis à jour à l'identique (mêmes colonnes, mêmes règles de calcul).
+
+### Bilan financier (onglet de `/statistiques`)
+Composé de deux tableaux :
+
+1. **Bilan mensuel** : une colonne par fin de mois entre les dates de saison configurées (lien "Configurer la saison", fenêtre modale, dates stockées dans `parametres_financiers.saison_debut`/`saison_fin`). Les colonnes sont générées dynamiquement (`genererFinsDeMois`), pas figées en dur. Chaque colonne reprend les 5 valeurs initiales (Coûts ASL, Révision carburant, Apport Mauritanie, Frais administratifs, Frais aéroport Mauritanie — saisies via la fenêtre modale "Valeurs initiales", stockées dans la même table singleton), puis calcule "Ventes réalisées" et "Résultat financier" **uniquement pour les mois déjà atteints** (date de fin de mois ≤ aujourd'hui) ; les mois futurs restent vides sur ces deux lignes.
+2. **Calcul à une date donnée** : formulaire avec sélecteur de date + bouton "Calculer", réutilise les mêmes 5 valeurs initiales, calcule à la demande via une server action.
+
+**Ventes réalisées à une date D** = somme, sur **toutes les assignations créées au plus tard le jour D** (`assignations.created_at <= D`), de `contingent engagement total × prix engagement HT`, PLUS somme, sur tous les passagers free-sale **enregistrés au plus tard le jour D** (`passagers.created_at <= D`), de leur prix free-sale HT.
+
+**Approximation validée avec l'utilisateur** (point d'architecture important) : si un contingent est modifié après sa création initiale (ex. augmenté), on ne conserve pas d'historique des valeurs successives — le calcul rétroactif utilise la valeur **actuelle** du contingent, appliquée depuis sa date de création d'origine. C'est une simplification assumée (pas de table d'audit/versioning), à garder à l'esprit si les contingents sont fréquemment réajustés après coup : le bilan financier des mois passés peut alors légèrement dévier de la réalité historique exacte.
+
+Table `parametres_financiers` : singleton (id fixé à 1), une seule ligne pour toute l'exploitation (pas de déclinaison par vol ni par saison — une nouvelle saison écrase simplement les dates de la précédente).
+
 
 ### Sauvegarde quotidienne (`/api/backup`, hors navigation utilisateur)
 Route `GET /api/backup?token=XXX`, protégée par la variable `BACKUP_TOKEN`, déclenchée par un service de cron externe (voir section 6 et 7). Envoie par email deux pièces jointes :

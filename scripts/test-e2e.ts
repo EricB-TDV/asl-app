@@ -196,12 +196,12 @@ async function main() {
   verifier("Une ligne de statistique existe pour le vol 5O708", !!ligneVol2, stats.lignes);
   verifier(
     "Sièges occupés = 5 (engagement attribué, consommé) + 1 (free-sale réellement enregistré) = 6",
-    ligneVol2?.nbSeatsOccupied === 6,
+    ligneVol2?.nbSeatsEngaged === 6,
     ligneVol2
   );
   verifier(
-    "Ventes HT = 350 (engagement) + 300 (free-sale) = 650",
-    ligneVol2?.salesHt === 650,
+    "Ventes HT = 5×350 (engagement facturé en totalité) + 1×300 (free-sale réel) = 2050",
+    ligneVol2?.salesHt === 2050,
     ligneVol2
   );
 
@@ -376,12 +376,20 @@ async function main() {
     assignationId: assignationSup.id,
     nbEngagementTotal: 8,
     nbFreeSaleTotal: 2,
+    prixEngagementHt: 350,
+    taxesEngagement: 30,
+    prixFreeSaleHt: 320,
+    taxesFreeSale: 25,
   });
   verifier("Modification des montants acceptée", !("error" in resModifMontants), resModifMontants);
   const resModifMontantsTropBas = await modifierMontantsAssignation({
     assignationId: assignationSup.id,
     nbEngagementTotal: 0,
     nbFreeSaleTotal: 0,
+    prixEngagementHt: null,
+    taxesEngagement: null,
+    prixFreeSaleHt: null,
+    taxesFreeSale: null,
   });
   verifier(
     "Modification refusée si en-dessous des passagers déjà enregistrés (1 engagement enregistré)",
@@ -526,6 +534,133 @@ async function main() {
   });
   const resModifDoublon = await modifierPassager(passagerAModifier.id, fdModifDoublon);
   verifier("Modification refusée en cas de doublon avec un autre passager", "error" in resModifDoublon, resModifDoublon);
+
+  console.log("\n--- 22. Vue par entreprise (aller/retour) ---");
+  const { calculerVuesParEntreprise } = await import("../lib/statistiques");
+  const volAllerVue = await db
+    .insert(vols)
+    .values({
+      numeroVol: "5O900",
+      aeroportDepart: "CDG",
+      aeroportArrivee: "ATR",
+      dateDepart: "2027-02-01",
+      dateArrivee: "2027-02-01",
+      nbSieges: 50,
+      coutVolHt: "1000",
+      taxes: "100",
+      sens: "aller",
+    })
+    .returning();
+  await db.insert(assignations).values({
+    volId: volAllerVue[0].id,
+    entrepriseId: entreprise.id,
+    nbEngagementTotal: 30,
+    nbFreeSaleTotal: 10,
+  });
+  await creerPassager(
+    formData({
+      volId: String(volAllerVue[0].id),
+      entrepriseId: String(entreprise.id),
+      typeSiege: "Free-sale",
+      civilite: "MR",
+      nom: "VUEENT1",
+      prenom: "Test",
+      dateNaissance: "1980-01-01",
+      genre: "M",
+      nationaliteCodePays: "FR",
+      documentPaysEmissionCodePays: "FR",
+    })
+  );
+  await creerPassager(
+    formData({
+      volId: String(volAllerVue[0].id),
+      entrepriseId: String(entreprise.id),
+      typeSiege: "Free-sale",
+      civilite: "MR",
+      nom: "VUEENT2",
+      prenom: "Test",
+      dateNaissance: "1981-01-01",
+      genre: "M",
+      nationaliteCodePays: "FR",
+      documentPaysEmissionCodePays: "FR",
+    })
+  );
+  await creerPassager(
+    formData({
+      volId: String(volAllerVue[0].id),
+      entrepriseId: String(entreprise.id),
+      typeSiege: "Engagement",
+      civilite: "MR",
+      nom: "VUEENT3",
+      prenom: "Test",
+      dateNaissance: "1982-01-01",
+      genre: "M",
+      nationaliteCodePays: "FR",
+      documentPaysEmissionCodePays: "FR",
+    })
+  );
+  const vues = await calculerVuesParEntreprise();
+  const ligneAller = vues.aller.lignes.find((l) => l.volId === volAllerVue[0].id);
+  verifier("La ligne existe dans la vue aller", !!ligneAller, ligneAller);
+  verifier(
+    "Sièges engagés pour l'entreprise = 30 (quota) + 2 (free-sale réel) = 32",
+    ligneAller?.engages[entreprise.nom] === 32,
+    ligneAller
+  );
+  verifier(
+    "Sièges réels pour l'entreprise = 1 (engagement réel) + 2 (free-sale réel) = 3",
+    ligneAller?.reels[entreprise.nom] === 3,
+    ligneAller
+  );
+
+  console.log("\n--- 23. Paramètres financiers et bilan (modification 7) ---");
+  const { enregistrerValeursInitiales, enregistrerSaison } = await import(
+    "../app/statistiques/actions"
+  );
+  const { lireParametresFinanciers, calculerVentesCumuleesADate, genererFinsDeMois } =
+    await import("../lib/statistiques");
+
+  const resValeurs = await enregistrerValeursInitiales(
+    {},
+    formData({
+      coutsAsl: "-1000",
+      revisionCarburant: "200",
+      apportMauritanie: "",
+      fraisAdministratifs: "-300",
+      fraisAeroportMauritanie: "-50",
+    })
+  );
+  verifier("Enregistrement des valeurs initiales OK", !("error" in resValeurs), resValeurs);
+
+  const parametres = await lireParametresFinanciers();
+  verifier(
+    "Valeurs relues correctement (coutsAsl = -1000)",
+    parametres.coutsAsl === -1000 && parametres.apportMauritanie === null,
+    parametres
+  );
+
+  const resSaison = await enregistrerSaison(
+    {},
+    formData({ saisonDebut: "2026-07-31", saisonFin: "2027-05-31" })
+  );
+  verifier("Enregistrement de la saison OK", !("error" in resSaison), resSaison);
+
+  const finsDeMois = genererFinsDeMois("2026-07-31", "2027-05-31");
+  verifier("11 fins de mois générées (31/07/2026 à 31/05/2027)", finsDeMois.length === 11, finsDeMois);
+  verifier("Première date = 2026-07-31", finsDeMois[0] === "2026-07-31", finsDeMois[0]);
+  verifier("Dernière date = 2027-05-31", finsDeMois[finsDeMois.length - 1] === "2027-05-31", finsDeMois);
+
+  // Ventes cumulées à une date très ancienne (avant toute assignation) : doit être 0.
+  const ventesAvant = await calculerVentesCumuleesADate("2020-01-01");
+  verifier("Ventes cumulées à une date antérieure à tout = 0", ventesAvant === 0, ventesAvant);
+
+  // Ventes cumulées à aujourd'hui : doit inclure au moins l'assignation créée au test 22
+  // (30 sièges engagement, pas de prix défini => 0€, donc on vérifie juste l'absence d'erreur
+  // et un montant >= 0).
+  const ventesAujourdhui = await calculerVentesCumuleesADate(
+    new Date().toISOString().slice(0, 10)
+  );
+  verifier("Ventes cumulées à aujourd'hui calculées sans erreur", ventesAujourdhui >= 0, ventesAujourdhui);
 
   console.log(`\n=== Résultat : ${nbOk} OK, ${nbKo} KO ===`);  process.exit(nbKo > 0 ? 1 : 0);
 }

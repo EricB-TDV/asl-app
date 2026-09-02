@@ -10,6 +10,10 @@ export type LigneAssignationAffichage = {
   nbFreeSaleTotal: number;
   occupesEngagement: number;
   occupesFreeSale: number;
+  prixEngagementHt: string | null;
+  taxesEngagement: string | null;
+  prixFreeSaleHt: string | null;
+  taxesFreeSale: string | null;
 };
 
 export default function TableAssignations({
@@ -28,10 +32,10 @@ export default function TableAssignations({
           <tr className="text-slate-500 text-xs">
             <th className="text-left py-1">Entreprise</th>
             <th className="text-left py-1">Engagement</th>
+            <th className="text-left py-1">Reste Eng.</th>
             <th className="text-left py-1">Free sale</th>
-            <th className="text-left py-1">Reste Engagement</th>
-            <th className="text-left py-1">Reste Free sale</th>
-            <th className="text-left py-1">Reste total</th>
+            <th className="text-left py-1">Reste F.S.</th>
+            <th className="text-left py-1">Reste Total</th>
           </tr>
         </thead>
         <tbody>
@@ -49,8 +53,8 @@ export default function TableAssignations({
                   </button>
                 </td>
                 <td className="py-1">{l.nbEngagementTotal}</td>
-                <td className="py-1">{l.nbFreeSaleTotal}</td>
                 <td className="py-1">{resteEngagement}</td>
+                <td className="py-1">{l.nbFreeSaleTotal}</td>
                 <td className="py-1">{resteFreeSale}</td>
                 <td className="py-1">{resteEngagement + resteFreeSale}</td>
               </tr>
@@ -88,6 +92,10 @@ function ModaleEdition({
 }) {
   const [nbEngagementTotal, setNbEngagementTotal] = useState(String(ligne.nbEngagementTotal));
   const [nbFreeSaleTotal, setNbFreeSaleTotal] = useState(String(ligne.nbFreeSaleTotal));
+  const [prixEngagementHt, setPrixEngagementHt] = useState(ligne.prixEngagementHt ?? "");
+  const [taxesEngagement, setTaxesEngagement] = useState(ligne.taxesEngagement ?? "");
+  const [prixFreeSaleHt, setPrixFreeSaleHt] = useState(ligne.prixFreeSaleHt ?? "");
+  const [taxesFreeSale, setTaxesFreeSale] = useState(ligne.taxesFreeSale ?? "");
   const [erreur, setErreur] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -98,6 +106,10 @@ function ModaleEdition({
         assignationId: ligne.assignationId,
         nbEngagementTotal: Number(nbEngagementTotal),
         nbFreeSaleTotal: Number(nbFreeSaleTotal),
+        prixEngagementHt: prixEngagementHt === "" ? null : Number(prixEngagementHt),
+        taxesEngagement: taxesEngagement === "" ? null : Number(taxesEngagement),
+        prixFreeSaleHt: prixFreeSaleHt === "" ? null : Number(prixFreeSaleHt),
+        taxesFreeSale: taxesFreeSale === "" ? null : Number(taxesFreeSale),
       });
       if (resultat && "error" in resultat && resultat.error) {
         setErreur(resultat.error);
@@ -109,35 +121,45 @@ function ModaleEdition({
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-6 space-y-4">
+      <div className="bg-white rounded-lg shadow-lg max-w-lg w-full p-6 space-y-4">
         <h3 className="font-semibold text-slate-800">{volEntete}</h3>
         <p className="text-sm text-slate-600">{ligne.entrepriseNom}</p>
 
         <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">
-              Total engagement
-            </label>
-            <input
-              type="number"
-              min={0}
-              value={nbEngagementTotal}
-              onChange={(e) => setNbEngagementTotal(e.target.value)}
-              className="w-full border border-slate-300 rounded px-2 py-1.5 text-sm"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">
-              Total free sale
-            </label>
-            <input
-              type="number"
-              min={0}
-              value={nbFreeSaleTotal}
-              onChange={(e) => setNbFreeSaleTotal(e.target.value)}
-              className="w-full border border-slate-300 rounded px-2 py-1.5 text-sm"
-            />
-          </div>
+          <Champ
+            label="Total engagement"
+            value={nbEngagementTotal}
+            onChange={setNbEngagementTotal}
+          />
+          <Champ
+            label="Total free sale"
+            value={nbFreeSaleTotal}
+            onChange={setNbFreeSaleTotal}
+          />
+          <Champ
+            label="Prix engagement HT"
+            value={prixEngagementHt}
+            onChange={setPrixEngagementHt}
+            step="0.01"
+          />
+          <Champ
+            label="Prix free sale HT"
+            value={prixFreeSaleHt}
+            onChange={setPrixFreeSaleHt}
+            step="0.01"
+          />
+          <Champ
+            label="Taxes engagement"
+            value={taxesEngagement}
+            onChange={setTaxesEngagement}
+            step="0.01"
+          />
+          <Champ
+            label="Taxes free sale"
+            value={taxesFreeSale}
+            onChange={setTaxesFreeSale}
+            step="0.01"
+          />
         </div>
 
         {erreur && (
@@ -163,6 +185,32 @@ function ModaleEdition({
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function Champ({
+  label,
+  value,
+  onChange,
+  step,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  step?: string;
+}) {
+  return (
+    <div>
+      <label className="block text-xs font-medium text-slate-600 mb-1">{label}</label>
+      <input
+        type="number"
+        min={0}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full border border-slate-300 rounded px-2 py-1.5 text-sm"
+      />
     </div>
   );
 }
