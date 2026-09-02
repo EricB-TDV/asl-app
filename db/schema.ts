@@ -36,6 +36,7 @@ export const utilisateurs = pgTable("utilisateurs", {
 export const entreprises = pgTable("entreprises", {
   id: serial("id").primaryKey(),
   nom: text("nom").notNull(),
+  code3Lettres: text("code_3_lettres"), // nullable en base (compat. existant), obligatoire en saisie applicative
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

@@ -10,7 +10,7 @@ import { creerVolUnitaire, supprimerVol } from "../app/vols/actions";
 import { creerOuModifierAssignation } from "../app/stocks/actions";
 import { creerPassager, supprimerPassager, importerPassagersCsv } from "../app/passagers/actions";
 import { creerUtilisateur, supprimerUtilisateur } from "../app/utilisateurs/actions";
-import { calculerStatistiquesConsolidees } from "../lib/statistiques";
+import { calculerStatistiquesConsolidees, calculerVuesParEntreprise } from "../lib/statistiques";
 import { eq, and, ne } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import fs from "fs";
@@ -43,7 +43,7 @@ async function main() {
   await db.delete(utilisateurs).where(sql`email = 'second@terdav.com'`);
 
   console.log("\n--- 1. Entreprise ---");
-  const resEntreprise = await creerEntreprise(formData({ nom: "Point Afrique Test" }));
+  const resEntreprise = await creerEntreprise(formData({ nom: "Point Afrique Test", code3Lettres: "PAT" }));
   verifier("Création entreprise OK", !("error" in resEntreprise), resEntreprise);
   const [entreprise] = await db.select().from(entreprises).where(eq(entreprises.nom, "Point Afrique Test"));
   verifier("Entreprise retrouvée en base", !!entreprise);
@@ -77,7 +77,7 @@ async function main() {
   verifier("Assignation dans la limite acceptée", !("error" in resAssignationOk), resAssignationOk);
 
   console.log("\n--- 4. Anti-surbooking (nouvelle entreprise, 4 sièges alors qu'il n'en reste que 2) ---");
-  const resEntreprise2 = await creerEntreprise(formData({ nom: "Allibert Test" }));
+  const resEntreprise2 = await creerEntreprise(formData({ nom: "Allibert Test", code3Lettres: "ALT" }));
   verifier("Création 2e entreprise OK", !("error" in resEntreprise2));
   const [entreprise2] = await db.select().from(entreprises).where(eq(entreprises.nom, "Allibert Test"));
 
@@ -296,7 +296,7 @@ async function main() {
   await db.delete(vols).where(eq(vols.id, volB[0].id));
 
   console.log("\n--- 15. Message exact de blocage de suppression de vol ---");
-  const entreprisePourTest = await creerEntreprise(formData({ nom: "Test Suppression Vol" }));
+  const entreprisePourTest = await creerEntreprise(formData({ nom: "Test Suppression Vol", code3Lettres: "TSV" }));
   verifier("Création entreprise OK", !("error" in entreprisePourTest));
   const [entrepriseSup] = await db
     .select()
@@ -604,12 +604,12 @@ async function main() {
   verifier("La ligne existe dans la vue aller", !!ligneAller, ligneAller);
   verifier(
     "Sièges engagés pour l'entreprise = 30 (quota) + 2 (free-sale réel) = 32",
-    ligneAller?.engages[entreprise.nom] === 32,
+    ligneAller?.engages[entreprise.code3Lettres!] === 32,
     ligneAller
   );
   verifier(
     "Sièges réels pour l'entreprise = 1 (engagement réel) + 2 (free-sale réel) = 3",
-    ligneAller?.reels[entreprise.nom] === 3,
+    ligneAller?.reels[entreprise.code3Lettres!] === 3,
     ligneAller
   );
 
@@ -661,6 +661,63 @@ async function main() {
     new Date().toISOString().slice(0, 10)
   );
   verifier("Ventes cumulées à aujourd'hui calculées sans erreur", ventesAujourdhui >= 0, ventesAujourdhui);
+
+  console.log("\n--- 24. Code entreprise obligatoire (3 lettres) ---");
+  const resEntrepriseSansCode = await creerEntreprise(formData({ nom: "Sans Code" }));
+  verifier("Création refusée sans code", "error" in resEntrepriseSansCode, resEntrepriseSansCode);
+  const resEntrepriseCodeTropLong = await creerEntreprise(
+    formData({ nom: "Code Trop Long", code3Lettres: "ABCD" })
+  );
+  verifier(
+    "Création refusée si code différent de 3 lettres",
+    "error" in resEntrepriseCodeTropLong,
+    resEntrepriseCodeTropLong
+  );
+  const resEntrepriseCodeOk = await creerEntreprise(
+    formData({ nom: "Code Correct", code3Lettres: "cor" })
+  );
+  verifier("Création acceptée avec un code de 3 lettres (mis en majuscules)", !("error" in resEntrepriseCodeOk));
+  const [entrepriseCodeOk] = await db
+    .select()
+    .from(entreprises)
+    .where(eq(entreprises.nom, "Code Correct"));
+  verifier(
+    "Le code est bien stocké en majuscules (COR)",
+    entrepriseCodeOk?.code3Lettres === "COR",
+    entrepriseCodeOk
+  );
+
+  console.log("\n--- 25. Alignement des dates aller/retour dans les vues par entreprise ---");
+  const volAllerAlign = await db
+    .insert(vols)
+    .values({
+      numeroVol: "5O950",
+      aeroportDepart: "CDG",
+      aeroportArrivee: "ATR",
+      dateDepart: "2027-03-15",
+      dateArrivee: "2027-03-15",
+      nbSieges: 50,
+      coutVolHt: "1000",
+      taxes: "100",
+      sens: "aller",
+    })
+    .returning();
+  // Volontairement aucun vol retour à cette date : la case retour doit rester vide.
+  const vuesAlign = await calculerVuesParEntreprise();
+  const indexAllerAlign = vuesAlign.aller.lignes.findIndex((l) => l.volId === volAllerAlign[0].id);
+  verifier("Le vol aller du 15/03/2027 est bien présent", indexAllerAlign !== -1, indexAllerAlign);
+  const ligneRetourAlign = vuesAlign.retour.lignes[indexAllerAlign];
+  verifier(
+    "La ligne retour à la même position est bien vide (volId null)",
+    ligneRetourAlign?.volId === null,
+    ligneRetourAlign
+  );
+  verifier(
+    "Les deux tableaux ont le même nombre de lignes (axe de dates commun)",
+    vuesAlign.aller.lignes.length === vuesAlign.retour.lignes.length,
+    { aller: vuesAlign.aller.lignes.length, retour: vuesAlign.retour.lignes.length }
+  );
+  await db.delete(vols).where(eq(vols.id, volAllerAlign[0].id));
 
   console.log(`\n=== Résultat : ${nbOk} OK, ${nbKo} KO ===`);  process.exit(nbKo > 0 ? 1 : 0);
 }

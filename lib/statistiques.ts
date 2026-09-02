@@ -141,37 +141,47 @@ export async function calculerStatistiquesConsolidees(): Promise<{
 }
 
 // ---------------------------------------------------------------------------
-// Modification 6 — Vues par entreprise (aller / retour côte à côte, une ligne
-// par date), pour les deux indicateurs : "sièges engagés" et "sièges réels".
+// Modification 6 (+ 2 et 3) — Vues par entreprise (aller / retour côte à
+// côte, alignées sur un axe de dates commun), pour les deux indicateurs :
+// "sièges engagés" et "sièges réels". Les entreprises sont identifiées par
+// leur code 3 lettres (plus compact que le nom complet).
 // ---------------------------------------------------------------------------
 
 export type LigneVueEntreprise = {
   date: string;
-  volId: number;
-  engages: Record<string, number>; // clé = nom entreprise
+  volId: number | null; // null = aucun vol dans ce sens à cette date (case vide)
+  engages: Record<string, number>; // clé = code entreprise (3 lettres)
   reels: Record<string, number>;
   totalEngages: number;
   totalReels: number;
-  stock: number;
-  resteEngages: number;
-  resteReels: number;
-  tauxEngages: number;
-  tauxReels: number;
+  stock: number | null;
+  resteEngages: number | null;
+  resteReels: number | null;
+  tauxEngages: number | null;
+  tauxReels: number | null;
 };
 
 export type VueParDirection = {
-  entreprises: string[];
+  entreprises: string[]; // codes 3 lettres
   lignes: LigneVueEntreprise[];
 };
 
-async function calculerVuePourDirection(sens: "aller" | "retour"): Promise<VueParDirection> {
+/** Code d'affichage d'une entreprise : son code 3 lettres, ou à défaut les 3 premières lettres de son nom. */
+function codeAffichage(nom: string, code3Lettres: string | null): string {
+  return code3Lettres ?? nom.slice(0, 3).toUpperCase();
+}
+
+async function calculerDonneesPourDirection(sens: "aller" | "retour") {
   const volsDirection = await db
     .select()
     .from(vols)
     .where(eq(vols.sens, sens))
     .orderBy(asc(vols.dateDepart));
 
-  if (volsDirection.length === 0) return { entreprises: [], lignes: [] };
+  const codesSet = new Set<string>();
+  const ligneParDate = new Map<string, LigneVueEntreprise>();
+
+  if (volsDirection.length === 0) return { codes: [] as string[], ligneParDate };
 
   const volIds = volsDirection.map((v) => v.id);
 
@@ -179,6 +189,7 @@ async function calculerVuePourDirection(sens: "aller" | "retour"): Promise<VuePa
     .select({
       volId: assignations.volId,
       entrepriseNom: entreprises.nom,
+      entrepriseCode: entreprises.code3Lettres,
       entrepriseId: assignations.entrepriseId,
       nbEngagementTotal: assignations.nbEngagementTotal,
     })
@@ -197,11 +208,9 @@ async function calculerVuePourDirection(sens: "aller" | "retour"): Promise<VuePa
     .where(inArray(passagers.volId, volIds))
     .groupBy(passagers.volId, passagers.entrepriseId, passagers.typeSiege);
 
-  const entreprisesSet = new Set<string>();
-  for (const a of assignationsDirection) entreprisesSet.add(a.entrepriseNom);
-  const nomsEntreprises = Array.from(entreprisesSet).sort((a, b) => a.localeCompare(b));
+  for (const a of assignationsDirection) codesSet.add(codeAffichage(a.entrepriseNom, a.entrepriseCode));
+  const codes = Array.from(codesSet).sort((a, b) => a.localeCompare(b));
 
-  // occupesFreeSale[volId][entrepriseId] / occupesEngagement[volId][entrepriseId]
   const occupesFreeSale = new Map<string, number>();
   const occupesEngagement = new Map<string, number>();
   for (const p of passagersDirection) {
@@ -210,23 +219,24 @@ async function calculerVuePourDirection(sens: "aller" | "retour"): Promise<VuePa
     else occupesEngagement.set(cle, Number(p.nb));
   }
 
-  const lignes: LigneVueEntreprise[] = volsDirection.map((v) => {
+  for (const v of volsDirection) {
     const engages: Record<string, number> = {};
     const reels: Record<string, number> = {};
-    for (const nom of nomsEntreprises) {
-      engages[nom] = 0;
-      reels[nom] = 0;
+    for (const code of codes) {
+      engages[code] = 0;
+      reels[code] = 0;
     }
     for (const a of assignationsDirection.filter((a) => a.volId === v.id)) {
       const cle = `${a.volId}-${a.entrepriseId}`;
+      const code = codeAffichage(a.entrepriseNom, a.entrepriseCode);
       const fs = occupesFreeSale.get(cle) ?? 0;
       const eng = occupesEngagement.get(cle) ?? 0;
-      engages[a.entrepriseNom] = a.nbEngagementTotal + fs;
-      reels[a.entrepriseNom] = eng + fs;
+      engages[code] = a.nbEngagementTotal + fs;
+      reels[code] = eng + fs;
     }
     const totalEngages = Object.values(engages).reduce((s, n) => s + n, 0);
     const totalReels = Object.values(reels).reduce((s, n) => s + n, 0);
-    return {
+    ligneParDate.set(v.dateDepart, {
       date: v.dateDepart,
       volId: v.id,
       engages,
@@ -238,20 +248,53 @@ async function calculerVuePourDirection(sens: "aller" | "retour"): Promise<VuePa
       resteReels: v.nbSieges - totalReels,
       tauxEngages: v.nbSieges > 0 ? totalEngages / v.nbSieges : 0,
       tauxReels: v.nbSieges > 0 ? totalReels / v.nbSieges : 0,
-    };
-  });
+    });
+  }
 
-  return { entreprises: nomsEntreprises, lignes };
+  return { codes, ligneParDate };
+}
+
+function ligneVide(date: string): LigneVueEntreprise {
+  return {
+    date,
+    volId: null,
+    engages: {},
+    reels: {},
+    totalEngages: 0,
+    totalReels: 0,
+    stock: null,
+    resteEngages: null,
+    resteReels: null,
+    tauxEngages: null,
+    tauxReels: null,
+  };
 }
 
 export async function calculerVuesParEntreprise(): Promise<{
   aller: VueParDirection;
   retour: VueParDirection;
 }> {
-  const [aller, retour] = await Promise.all([
-    calculerVuePourDirection("aller"),
-    calculerVuePourDirection("retour"),
+  const [allerData, retourData] = await Promise.all([
+    calculerDonneesPourDirection("aller"),
+    calculerDonneesPourDirection("retour"),
   ]);
+
+  // Modification 3 — axe de dates commun : un aller et un retour à la même
+  // date apparaissent sur la même ligne dans les deux tableaux ; une case
+  // vide est insérée quand l'un des deux sens n'a pas de vol à cette date.
+  const toutesLesDates = Array.from(
+    new Set([...allerData.ligneParDate.keys(), ...retourData.ligneParDate.keys()])
+  ).sort();
+
+  const aller: VueParDirection = {
+    entreprises: allerData.codes,
+    lignes: toutesLesDates.map((d) => allerData.ligneParDate.get(d) ?? ligneVide(d)),
+  };
+  const retour: VueParDirection = {
+    entreprises: retourData.codes,
+    lignes: toutesLesDates.map((d) => retourData.ligneParDate.get(d) ?? ligneVide(d)),
+  };
+
   return { aller, retour };
 }
 

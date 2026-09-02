@@ -1,0 +1,1 @@
+ALTER TABLE "entreprises" ADD COLUMN "code_3_lettres" text;

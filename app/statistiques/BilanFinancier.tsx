@@ -46,7 +46,15 @@ export default async function BilanFinancier() {
   return (
     <div className="space-y-10">
       <section>
-        <h2 className="font-semibold text-slate-800 mb-3">Bilan financier mensuel</h2>
+        <div className="flex justify-between items-center mb-3">
+          <h2 className="font-semibold text-slate-800">Bilan financier mensuel</h2>
+          <a
+            href="/api/statistiques/export-bilan"
+            className="bg-slate-800 text-white text-sm px-4 py-2 rounded hover:bg-slate-700"
+          >
+            Télécharger (Excel)
+          </a>
+        </div>
 
         {!parametres.saisonDebut || !parametres.saisonFin ? (
           <p className="text-sm text-slate-500 mb-3">
@@ -86,9 +94,9 @@ export default async function BilanFinancier() {
               {LIGNES.map((ligne) => (
                 <tr key={ligne.cle} className="border-t border-slate-100">
                   <td className="px-3 py-2 font-medium">{ligne.label}</td>
-                  <td className="px-3 py-2">{formatEur(parametres[ligne.cle])}</td>
+                  <td className="px-3 py-2 text-right">{formatEur(parametres[ligne.cle])}</td>
                   {dates.map((d) => (
-                    <td key={d} className="px-3 py-2">
+                    <td key={d} className="px-3 py-2 text-right">
                       {formatEur(parametres[ligne.cle])}
                     </td>
                   ))}
@@ -98,7 +106,7 @@ export default async function BilanFinancier() {
                 <td className="px-3 py-2 font-medium">Ventes réalisées</td>
                 <td className="px-3 py-2"></td>
                 {dates.map((d) => (
-                  <td key={d} className="px-3 py-2">
+                  <td key={d} className="px-3 py-2 text-right">
                     {ventesParDate.has(d) ? formatEur(ventesParDate.get(d)!) : ""}
                   </td>
                 ))}
@@ -107,7 +115,7 @@ export default async function BilanFinancier() {
                 <td className="px-3 py-2">Résultat financier</td>
                 <td className="px-3 py-2"></td>
                 {dates.map((d) => (
-                  <td key={d} className="px-3 py-2">
+                  <td key={d} className="px-3 py-2 text-right">
                     {ventesParDate.has(d)
                       ? formatEur(sommeValeursInitiales + ventesParDate.get(d)!)
                       : ""}

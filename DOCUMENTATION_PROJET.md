@@ -75,6 +75,7 @@ Index unique `(vol_id, nom, prenom, date_naissance, numero_document)` — protec
 - `0000_unusual_proemial_gods.sql` : création initiale des 6 tables
 - `0001_nasty_alex_wilder.sql` : passage de `numero_document` et `date_expiration_document` en colonnes nullables
 - `0002_easy_cargill.sql` : ajout de la table `parametres_financiers`
+- `0003_brave_wrecking_crew.sql` : ajout de la colonne `code_3_lettres` sur `entreprises`
 
 **Important** : les migrations Drizzle générées ne s'appliquent **pas automatiquement** au déploiement Clever Cloud. Voir section 7 (Procédures) pour la marche à suivre.
 
@@ -92,7 +93,7 @@ CRUD complet accessible à tout administrateur connecté. Règles :
 - Impossible de supprimer le dernier compte administrateur restant (évite un verrouillage total)
 
 ### Entreprises (`/entreprises`)
-CRUD simple. Liste triée par ordre alphabétique. Suppression bloquée si des passagers y sont encore rattachés.
+CRUD simple. Liste triée par ordre alphabétique. Suppression bloquée si des passagers y sont encore rattachés. Chaque entreprise a un **code sur 3 lettres** (obligatoire à la saisie, mis en majuscules automatiquement), utilisé pour abréger son nom dans les tableaux à forte densité (vues par entreprise de l'écran Statistiques). Colonne nullable en base pour compatibilité avec des entreprises créées avant l'ajout de ce champ ; dans ce cas, le code affiché retombe sur les 3 premières lettres du nom. La route `/api/setup` applique automatiquement un jeu de codes connus (par correspondance de nom) aux entreprises existantes qui n'en ont pas encore.
 
 ### Vols (`/vols`)
 - **Création unitaire** (un sens à la fois : aller PAR→ATR ou retour ATR→PAR)
@@ -137,13 +138,13 @@ Un fichier Excel (.xlsx, remplace l'ancien CSV) par vol, format de colonnes **im
 
 **Règle de calcul « Ventes HT »** (révisée) : pour chaque entreprise ayant un contingent sur le vol, `(contingent engagement total × prix engagement HT) + (nombre de passagers réellement enregistrés en free-sale pour cette entreprise × prix free-sale HT)`. L'engagement est facturé en totalité, qu'il soit utilisé ou non ; le free-sale n'est facturé qu'à l'usage réel. Somme sur toutes les entreprises du vol.
 
-**Onglets "Vue entreprise sièges engagés" / "Vue entreprise sièges réels"** : deux tableaux côte à côte (Aller / Retour), une ligne par date, une colonne par entreprise ayant un contingent dans ce sens, plus Total / Stock / Reste / %. Réutilisent la même fonction de calcul (`calculerVuesParEntreprise`), seule la métrique affichée diffère :
+**Onglets "Vue entreprise sièges engagés" / "Vue entreprise sièges réels"** : deux tableaux côte à côte (Aller / Retour), une ligne par date. **Les deux tableaux partagent un axe de dates commun** (union triée des dates aller et retour) : une case reste vide côté aller (ou retour) si aucun vol n'existe à cette date dans ce sens, pour que l'aller et le retour d'une même date restent alignés sur la même ligne. Une colonne par entreprise ayant un contingent dans ce sens, **identifiée par son code 3 lettres** (pas son nom complet, pour limiter la largeur), plus Total / Stock / Reste / %. Réutilisent la même fonction de calcul (`calculerVuesParEntreprise`), seule la métrique affichée diffère :
 - *Sièges engagés* par entreprise = contingent engagement total de l'entreprise + ses passagers free-sale réellement enregistrés
 - *Sièges réels* par entreprise = tous ses passagers réellement enregistrés (engagement + free-sale)
 
 **Onglet "Bilan financier"** : voir section dédiée ci-dessous.
 
-Export Excel (vue globale uniquement) mis à jour à l'identique (mêmes colonnes, mêmes règles de calcul).
+Export Excel disponible pour les 4 onglets (`/api/statistiques/export` pour la vue globale, `/api/statistiques/export-entreprise?mode=engages|reels` pour les deux vues par entreprise avec 2 feuilles Aller/Retour, `/api/statistiques/export-bilan` pour le bilan mensuel), mêmes colonnes et mêmes règles de calcul que l'écran.
 
 ### Bilan financier (onglet de `/statistiques`)
 Composé de deux tableaux :

@@ -1,0 +1,650 @@
+{
+  "id": "17a0ffca-9fd5-4dba-b9e3-46c4e8e522c2",
+  "prevId": "e0813cfe-ef58-42e7-ac07-d0050fed2a42",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.assignations": {
+      "name": "assignations",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "vol_id": {
+          "name": "vol_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entreprise_id": {
+          "name": "entreprise_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nb_engagement_total": {
+          "name": "nb_engagement_total",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "nb_free_sale_total": {
+          "name": "nb_free_sale_total",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "prix_engagement_ht": {
+          "name": "prix_engagement_ht",
+          "type": "numeric(10, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "taxes_engagement": {
+          "name": "taxes_engagement",
+          "type": "numeric(10, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "prix_free_sale_ht": {
+          "name": "prix_free_sale_ht",
+          "type": "numeric(10, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "taxes_free_sale": {
+          "name": "taxes_free_sale",
+          "type": "numeric(10, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "uniq_vol_entreprise": {
+          "name": "uniq_vol_entreprise",
+          "columns": [
+            {
+              "expression": "vol_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "entreprise_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "assignations_vol_id_vols_id_fk": {
+          "name": "assignations_vol_id_vols_id_fk",
+          "tableFrom": "assignations",
+          "tableTo": "vols",
+          "columnsFrom": [
+            "vol_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "assignations_entreprise_id_entreprises_id_fk": {
+          "name": "assignations_entreprise_id_entreprises_id_fk",
+          "tableFrom": "assignations",
+          "tableTo": "entreprises",
+          "columnsFrom": [
+            "entreprise_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.entreprises": {
+      "name": "entreprises",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "nom": {
+          "name": "nom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "code_3_lettres": {
+          "name": "code_3_lettres",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.parametres_financiers": {
+      "name": "parametres_financiers",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "default": 1
+        },
+        "couts_asl": {
+          "name": "couts_asl",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "revision_carburant": {
+          "name": "revision_carburant",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "apport_mauritanie": {
+          "name": "apport_mauritanie",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "frais_administratifs": {
+          "name": "frais_administratifs",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "frais_aeroport_mauritanie": {
+          "name": "frais_aeroport_mauritanie",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "saison_debut": {
+          "name": "saison_debut",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "saison_fin": {
+          "name": "saison_fin",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.passagers": {
+      "name": "passagers",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "vol_id": {
+          "name": "vol_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entreprise_id": {
+          "name": "entreprise_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type_siege": {
+          "name": "type_siege",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "civilite": {
+          "name": "civilite",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nom": {
+          "name": "nom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "prenom": {
+          "name": "prenom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "date_naissance": {
+          "name": "date_naissance",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "genre": {
+          "name": "genre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "numero_reservation": {
+          "name": "numero_reservation",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "nationalite_code_pays": {
+          "name": "nationalite_code_pays",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type_document": {
+          "name": "type_document",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'PP'"
+        },
+        "numero_document": {
+          "name": "numero_document",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "document_pays_emission_code_pays": {
+          "name": "document_pays_emission_code_pays",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "date_emission_document": {
+          "name": "date_emission_document",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "date_expiration_document": {
+          "name": "date_expiration_document",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "seat_row": {
+          "name": "seat_row",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "excess_bag": {
+          "name": "excess_bag",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "uniq_passager_sur_vol": {
+          "name": "uniq_passager_sur_vol",
+          "columns": [
+            {
+              "expression": "vol_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "nom",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "prenom",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "date_naissance",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "numero_document",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "passagers_vol_id_vols_id_fk": {
+          "name": "passagers_vol_id_vols_id_fk",
+          "tableFrom": "passagers",
+          "tableTo": "vols",
+          "columnsFrom": [
+            "vol_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "passagers_entreprise_id_entreprises_id_fk": {
+          "name": "passagers_entreprise_id_entreprises_id_fk",
+          "tableFrom": "passagers",
+          "tableTo": "entreprises",
+          "columnsFrom": [
+            "entreprise_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "passagers_nationalite_code_pays_pays_code_fk": {
+          "name": "passagers_nationalite_code_pays_pays_code_fk",
+          "tableFrom": "passagers",
+          "tableTo": "pays",
+          "columnsFrom": [
+            "nationalite_code_pays"
+          ],
+          "columnsTo": [
+            "code"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "passagers_document_pays_emission_code_pays_pays_code_fk": {
+          "name": "passagers_document_pays_emission_code_pays_pays_code_fk",
+          "tableFrom": "passagers",
+          "tableTo": "pays",
+          "columnsFrom": [
+            "document_pays_emission_code_pays"
+          ],
+          "columnsTo": [
+            "code"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.pays": {
+      "name": "pays",
+      "schema": "",
+      "columns": {
+        "code": {
+          "name": "code",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "nom": {
+          "name": "nom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.utilisateurs": {
+      "name": "utilisateurs",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "nom": {
+          "name": "nom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "mot_de_passe_hash": {
+          "name": "mot_de_passe_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "utilisateurs_email_unique": {
+          "name": "utilisateurs_email_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "email"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.vols": {
+      "name": "vols",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "numero_vol": {
+          "name": "numero_vol",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "aeroport_depart": {
+          "name": "aeroport_depart",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "aeroport_arrivee": {
+          "name": "aeroport_arrivee",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "date_depart": {
+          "name": "date_depart",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "date_arrivee": {
+          "name": "date_arrivee",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nb_sieges": {
+          "name": "nb_sieges",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cout_vol_ht": {
+          "name": "cout_vol_ht",
+          "type": "numeric(10, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "taxes": {
+          "name": "taxes",
+          "type": "numeric(10, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sens": {
+          "name": "sens",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "serie_id": {
+          "name": "serie_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

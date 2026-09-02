@@ -7,7 +7,10 @@ import { eq, sql } from "drizzle-orm";
 import { safeRevalidatePath as revalidatePath } from "@/lib/safe-revalidate";
 
 export async function creerEntreprise(formData: FormData) {
-  const parsed = entrepriseSchema.safeParse({ nom: formData.get("nom") });
+  const parsed = entrepriseSchema.safeParse({
+    nom: formData.get("nom"),
+    code3Lettres: formData.get("code3Lettres"),
+  });
   if (!parsed.success) {
     return { error: parsed.error.issues[0].message };
   }
@@ -17,7 +20,10 @@ export async function creerEntreprise(formData: FormData) {
 }
 
 export async function modifierEntreprise(id: number, formData: FormData) {
-  const parsed = entrepriseSchema.safeParse({ nom: formData.get("nom") });
+  const parsed = entrepriseSchema.safeParse({
+    nom: formData.get("nom"),
+    code3Lettres: formData.get("code3Lettres"),
+  });
   if (!parsed.success) {
     return { error: parsed.error.issues[0].message };
   }

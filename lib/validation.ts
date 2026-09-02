@@ -2,6 +2,12 @@ import { z } from "zod";
 
 export const entrepriseSchema = z.object({
   nom: z.string().trim().min(1, "Le nom de l'entreprise est requis."),
+  code3Lettres: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .length(3, "Le code doit comporter exactement 3 lettres.")
+    .regex(/^[A-Z]{3}$/, "Le code ne doit contenir que 3 lettres."),
 });
 
 export const utilisateurCreationSchema = z.object({

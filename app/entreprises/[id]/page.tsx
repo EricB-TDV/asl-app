@@ -39,6 +39,16 @@ export default async function ModifierEntreprisePage({
             className="w-full border border-slate-300 rounded px-3 py-2 text-sm"
           />
         </div>
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">Code (3 lettres)</label>
+          <input
+            name="code3Lettres"
+            defaultValue={entreprise.code3Lettres ?? ""}
+            required
+            maxLength={3}
+            className="w-24 border border-slate-300 rounded px-3 py-2 text-sm uppercase"
+          />
+        </div>
         <button className="bg-slate-800 text-white text-sm px-4 py-2 rounded hover:bg-slate-700">
           Enregistrer
         </button>

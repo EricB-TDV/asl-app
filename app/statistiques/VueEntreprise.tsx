@@ -11,9 +11,19 @@ export default function VueEntreprise({
   mode: "engages" | "reels";
 }) {
   return (
-    <div className="grid md:grid-cols-2 gap-4">
-      <BlocDirection titre="Aller (CDG → ATR)" vue={aller} mode={mode} />
-      <BlocDirection titre="Retour (ATR → CDG)" vue={retour} mode={mode} />
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <a
+          href={`/api/statistiques/export-entreprise?mode=${mode}`}
+          className="bg-slate-800 text-white text-sm px-4 py-2 rounded hover:bg-slate-700"
+        >
+          Télécharger (Excel)
+        </a>
+      </div>
+      <div className="grid md:grid-cols-2 gap-4">
+        <BlocDirection titre="Aller (CDG → ATR)" vue={aller} mode={mode} />
+        <BlocDirection titre="Retour (ATR → CDG)" vue={retour} mode={mode} />
+      </div>
     </div>
   );
 }
@@ -34,9 +44,9 @@ function BlocDirection({
         <thead>
           <tr className="text-slate-500">
             <th className="text-left pr-3 py-1">Date</th>
-            {vue.entreprises.map((nom) => (
-              <th key={nom} className="text-left pr-3 py-1">
-                {nom}
+            {vue.entreprises.map((code) => (
+              <th key={code} className="text-left pr-3 py-1">
+                {code}
               </th>
             ))}
             <th className="text-left pr-3 py-1">Total</th>
@@ -46,23 +56,39 @@ function BlocDirection({
           </tr>
         </thead>
         <tbody>
-          {vue.lignes.map((l) => {
+          {vue.lignes.map((l, index) => {
+            if (l.volId === null) {
+              // Modification 3 : case vide pour garder l'alignement des dates
+              // avec l'autre sens (aller/retour).
+              return (
+                <tr key={`${l.date}-${index}`} className="border-t border-slate-100 text-slate-300">
+                  <td className="pr-3 py-1">{isoVersDdmmyyyy(l.date)}</td>
+                  {vue.entreprises.map((code) => (
+                    <td key={code} className="pr-3 py-1"></td>
+                  ))}
+                  <td className="pr-3 py-1"></td>
+                  <td className="pr-3 py-1"></td>
+                  <td className="pr-3 py-1"></td>
+                  <td className="pr-3 py-1"></td>
+                </tr>
+              );
+            }
             const parEntreprise = mode === "engages" ? l.engages : l.reels;
             const total = mode === "engages" ? l.totalEngages : l.totalReels;
             const reste = mode === "engages" ? l.resteEngages : l.resteReels;
             const taux = mode === "engages" ? l.tauxEngages : l.tauxReels;
             return (
-              <tr key={l.volId} className="border-t border-slate-100">
+              <tr key={`${l.date}-${index}`} className="border-t border-slate-100">
                 <td className="pr-3 py-1">{isoVersDdmmyyyy(l.date)}</td>
-                {vue.entreprises.map((nom) => (
-                  <td key={nom} className="pr-3 py-1">
-                    {parEntreprise[nom] ?? 0}
+                {vue.entreprises.map((code) => (
+                  <td key={code} className="pr-3 py-1">
+                    {parEntreprise[code] ?? 0}
                   </td>
                 ))}
                 <td className="pr-3 py-1 font-medium">{total}</td>
                 <td className="pr-3 py-1">{l.stock}</td>
                 <td className="pr-3 py-1">{reste}</td>
-                <td className="pr-3 py-1">{(taux * 100).toFixed(0)} %</td>
+                <td className="pr-3 py-1">{taux != null ? `${(taux * 100).toFixed(0)} %` : ""}</td>
               </tr>
             );
           })}

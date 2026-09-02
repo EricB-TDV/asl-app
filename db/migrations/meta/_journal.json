@@ -22,6 +22,13 @@
       "when": 1788361062394,
       "tag": "0002_easy_cargill",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1788363922612,
+      "tag": "0003_brave_wrecking_crew",
+      "breakpoints": true
     }
   ]
 }

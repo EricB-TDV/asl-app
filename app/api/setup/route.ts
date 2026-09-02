@@ -1,13 +1,33 @@
 import { db } from "@/db";
-import { pays, utilisateurs } from "@/db/schema";
+import { pays, utilisateurs, entreprises } from "@/db/schema";
 import { hashPassword } from "@/lib/auth";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, isNull } from "drizzle-orm";
 import { NextRequest } from "next/server";
 import fs from "fs";
 import path from "path";
 import donneesPays from "@/scripts/pays-iso.json";
 
 export const dynamic = "force-dynamic";
+
+/** Codes connus à appliquer aux entreprises existantes (modification 1). */
+const CODES_ENTREPRISES_CONNUS: { nom: string; code: string }[] = [
+  { nom: "Allibert", code: "ALL" },
+  { nom: "Altaï", code: "ALT" },
+  { nom: "Irwigoo", code: "IRW" },
+  { nom: "La Balaguère", code: "LAB" },
+  { nom: "Nomade", code: "NOM" },
+  { nom: "Point Afrique", code: "PAF" },
+  { nom: "Sahara découvertes", code: "SAD" },
+  { nom: "Terres d'Aventure", code: "TDV" },
+];
+
+function normaliser(texte: string): string {
+  return texte
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // retire les accents
+    .toLowerCase()
+    .trim();
+}
 
 /**
  * Route de mise en place initiale de l'environnement de production, pensée
@@ -92,7 +112,43 @@ export async function GET(request: NextRequest) {
     return texte(rapport.join("\n"), 500);
   }
 
-  // 3. Compte administrateur (optionnel, seulement si les 3 paramètres sont fournis)
+  // 3. Codes entreprises connus (modification 1) — mise à jour par
+  // correspondance de nom (accents/casse ignorés, correspondance exacte ou
+  // partielle). N'écrase jamais un code déjà saisi manuellement.
+  try {
+    const toutesLesEntreprises = await db
+      .select()
+      .from(entreprises)
+      .where(isNull(entreprises.code3Lettres));
+
+    let nbAppliques = 0;
+    for (const e of toutesLesEntreprises) {
+      const nomNormalise = normaliser(e.nom);
+      const correspondance = CODES_ENTREPRISES_CONNUS.find((c) => {
+        const connuNormalise = normaliser(c.nom);
+        return (
+          nomNormalise === connuNormalise ||
+          nomNormalise.includes(connuNormalise) ||
+          connuNormalise.includes(nomNormalise)
+        );
+      });
+      if (correspondance) {
+        await db
+          .update(entreprises)
+          .set({ code3Lettres: correspondance.code })
+          .where(eq(entreprises.id, e.id));
+        nbAppliques++;
+      }
+    }
+    rapport.push(
+      `✅ Codes entreprises : ${nbAppliques} code(s) appliqué(s) automatiquement (${toutesLesEntreprises.length - nbAppliques} entreprise(s) sans correspondance connue, à compléter manuellement).`
+    );
+  } catch (err) {
+    rapport.push(`❌ Application des codes entreprises échouée : ${err instanceof Error ? err.message : String(err)}`);
+    return texte(rapport.join("\n"), 500);
+  }
+
+  // 4. Compte administrateur (optionnel, seulement si les 3 paramètres sont fournis)
   const adminNom = params.get("adminNom");
   const adminEmail = params.get("adminEmail")?.trim().toLowerCase();
   const adminMotDePasse = params.get("adminMotDePasse");
