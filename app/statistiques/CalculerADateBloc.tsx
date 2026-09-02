@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { calculerADate, CalculDateState } from "./actions";
 
 type Valeurs = {
@@ -11,10 +11,21 @@ type Valeurs = {
   fraisAeroportMauritanie: number | null;
 };
 
-const etatInitial: CalculDateState = {};
-
-export default function CalculerADateBloc({ valeurs }: { valeurs: Valeurs }) {
+export default function CalculerADateBloc({
+  valeurs,
+  valeurInitiale,
+}: {
+  valeurs: Valeurs;
+  valeurInitiale: { date: string; montant: number };
+}) {
+  const etatInitial: CalculDateState = {
+    montant: valeurInitiale.montant,
+    date: valeurInitiale.date,
+  };
   const [state, formAction, isPending] = useActionState(calculerADate, etatInitial);
+  // Modification 2 : suit la date actuellement affichée pour proposer un
+  // export Excel cohérent avec le calcul visible à l'écran.
+  const [dateAffichee, setDateAffichee] = useState(valeurInitiale.date);
 
   const ventes = state?.montant ?? null;
   const resultat =
@@ -32,7 +43,14 @@ export default function CalculerADateBloc({ valeurs }: { valeurs: Valeurs }) {
 
   return (
     <div className="space-y-4">
-      <form action={formAction} className="flex items-end gap-3">
+      <form
+        action={formAction}
+        onSubmit={(e) => {
+          const date = (e.currentTarget.elements.namedItem("date") as HTMLInputElement)?.value;
+          if (date) setDateAffichee(date);
+        }}
+        className="flex items-end gap-3"
+      >
         <div>
           <label className="block text-xs font-medium text-slate-600 mb-1">
             Calculer à une date
@@ -40,6 +58,7 @@ export default function CalculerADateBloc({ valeurs }: { valeurs: Valeurs }) {
           <input
             type="date"
             name="date"
+            defaultValue={valeurInitiale.date}
             required
             className="border border-slate-300 rounded px-2 py-1.5 text-sm"
           />
@@ -50,6 +69,12 @@ export default function CalculerADateBloc({ valeurs }: { valeurs: Valeurs }) {
         >
           {isPending ? "Calcul..." : "Calculer"}
         </button>
+        <a
+          href={`/api/statistiques/export-bilan?date=${dateAffichee}`}
+          className="bg-slate-800 text-white text-sm px-4 py-2 rounded hover:bg-slate-700"
+        >
+          Télécharger (Excel)
+        </a>
       </form>
 
       {state?.error && (

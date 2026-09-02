@@ -5,6 +5,7 @@ import {
 } from "@/lib/statistiques";
 import { isoVersDdmmyyyy } from "@/lib/dates";
 import ExcelJS from "exceljs";
+import { NextRequest } from "next/server";
 
 const LIGNES = [
   { cle: "coutsAsl" as const, label: "Coûts ASL" },
@@ -14,7 +15,7 @@ const LIGNES = [
   { cle: "fraisAeroportMauritanie" as const, label: "Frais aéroport Mauritanie" },
 ];
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const parametres = await lireParametresFinanciers();
 
   const sommeValeursInitiales =
@@ -69,6 +70,36 @@ export async function GET() {
   const rowResultat = feuille.addRow(ligneResultat);
   rowResultat.font = { bold: true };
   rowResultat.eachCell((cell, colNumber) => {
+    if (colNumber > 1) cell.alignment = { horizontal: "right" };
+  });
+
+  // Modification 2 — feuille supplémentaire : calcul à une date donnée
+  // (paramètre ?date=, ou date du jour par défaut).
+  const dateParam = request.nextUrl.searchParams.get("date");
+  const dateCalcul =
+    dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam) ? dateParam : aujourdHui;
+  const ventesADate = await calculerVentesCumuleesADate(dateCalcul);
+  const resultatADate = sommeValeursInitiales + ventesADate;
+
+  const feuilleDate = workbook.addWorksheet("Calcul à une date");
+  feuilleDate.columns = [
+    { header: "", key: "label", width: 26 },
+    { header: isoVersDdmmyyyy(dateCalcul), key: "valeur", width: 16 },
+  ];
+  feuilleDate.getRow(1).font = { bold: true };
+  for (const ligne of LIGNES) {
+    feuilleDate.addRow({ label: ligne.label, valeur: parametres[ligne.cle] ?? 0 }).eachCell(
+      (cell, colNumber) => {
+        if (colNumber > 1) cell.alignment = { horizontal: "right" };
+      }
+    );
+  }
+  feuilleDate.addRow({ label: "Ventes réalisées", valeur: ventesADate }).eachCell((cell, colNumber) => {
+    if (colNumber > 1) cell.alignment = { horizontal: "right" };
+  });
+  const rowResultatDate = feuilleDate.addRow({ label: "Résultat financier", valeur: resultatADate });
+  rowResultatDate.font = { bold: true };
+  rowResultatDate.eachCell((cell, colNumber) => {
     if (colNumber > 1) cell.alignment = { horizontal: "right" };
   });
 

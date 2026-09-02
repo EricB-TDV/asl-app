@@ -43,6 +43,10 @@ export default async function BilanFinancier() {
     }
   }
 
+  // Modification 1 — pré-calcul systématique à l'ouverture de la page, avec
+  // la date du jour préremplie.
+  const ventesAujourdHui = ventesParDate.get(aujourdHui) ?? (await calculerVentesCumuleesADate(aujourdHui));
+
   return (
     <div className="space-y-10">
       <section>
@@ -61,10 +65,15 @@ export default async function BilanFinancier() {
             Aucune saison configurée. <ConfigurerSaisonModal saisonDebut={parametres.saisonDebut} saisonFin={parametres.saisonFin} />
           </p>
         ) : (
-          <p className="text-xs text-slate-500 mb-3">
-            Saison : {isoVersDdmmyyyy(parametres.saisonDebut)} → {isoVersDdmmyyyy(parametres.saisonFin)} —{" "}
-            <ConfigurerSaisonModal saisonDebut={parametres.saisonDebut} saisonFin={parametres.saisonFin} />
-          </p>
+          <>
+            <p className="text-sm text-slate-600 mb-1">
+              Calcul du bilan financier avec les ventes réalisées à la fin de chaque mois.
+            </p>
+            <p className="text-xs text-slate-500 mb-3">
+              Saison : {isoVersDdmmyyyy(parametres.saisonDebut)} → {isoVersDdmmyyyy(parametres.saisonFin)} —{" "}
+              <ConfigurerSaisonModal saisonDebut={parametres.saisonDebut} saisonFin={parametres.saisonFin} />
+            </p>
+          </>
         )}
 
         <div className="overflow-x-auto">
@@ -137,6 +146,7 @@ export default async function BilanFinancier() {
             fraisAdministratifs: parametres.fraisAdministratifs,
             fraisAeroportMauritanie: parametres.fraisAeroportMauritanie,
           }}
+          valeurInitiale={{ date: aujourdHui, montant: ventesAujourdHui }}
         />
       </section>
     </div>

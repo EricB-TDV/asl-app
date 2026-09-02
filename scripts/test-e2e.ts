@@ -536,7 +536,6 @@ async function main() {
   verifier("Modification refusée en cas de doublon avec un autre passager", "error" in resModifDoublon, resModifDoublon);
 
   console.log("\n--- 22. Vue par entreprise (aller/retour) ---");
-  const { calculerVuesParEntreprise } = await import("../lib/statistiques");
   const volAllerVue = await db
     .insert(vols)
     .values({
