@@ -20,7 +20,7 @@ export default function VueEntreprise({
           Télécharger (Excel)
         </a>
       </div>
-      <div className="grid md:grid-cols-2 gap-4">
+      <div className="grid md:grid-cols-2 gap-4 items-start">
         <BlocDirection titre="Aller (CDG → ATR)" vue={aller} mode={mode} />
         <BlocDirection titre="Retour (ATR → CDG)" vue={retour} mode={mode} />
       </div>
@@ -38,21 +38,21 @@ function BlocDirection({
   mode: "engages" | "reels";
 }) {
   return (
-    <div className="bg-white border border-slate-200 rounded-lg p-4 overflow-x-auto">
-      <h3 className="font-semibold text-sm mb-3">{titre}</h3>
-      <table className="text-xs whitespace-nowrap">
+    <div className="bg-white border border-slate-200 rounded-lg p-4">
+      <h3 className="font-semibold text-base mb-3">{titre}</h3>
+      <table className="w-full table-fixed text-base">
         <thead>
           <tr className="text-slate-500">
-            <th className="text-left pr-3 py-1">Date</th>
+            <th className="text-left px-3 py-3">Date</th>
             {vue.entreprises.map((code) => (
-              <th key={code} className="text-left pr-3 py-1">
+              <th key={code} className="text-left px-3 py-3">
                 {code}
               </th>
             ))}
-            <th className="text-left pr-3 py-1">Total</th>
-            <th className="text-left pr-3 py-1">Stock</th>
-            <th className="text-left pr-3 py-1">Reste</th>
-            <th className="text-left pr-3 py-1">%</th>
+            <th className="text-left px-3 py-3">Total</th>
+            <th className="text-left px-3 py-3">Stock</th>
+            <th className="text-left px-3 py-3">Reste</th>
+            <th className="text-left px-3 py-3">%</th>
           </tr>
         </thead>
         <tbody>
@@ -62,14 +62,14 @@ function BlocDirection({
               // avec l'autre sens (aller/retour).
               return (
                 <tr key={`${l.date}-${index}`} className="border-t border-slate-100 text-slate-300">
-                  <td className="pr-3 py-1">{isoVersDdmmyyyy(l.date)}</td>
+                  <td className="px-3 py-3">{isoVersDdmmyyyy(l.date)}</td>
                   {vue.entreprises.map((code) => (
-                    <td key={code} className="pr-3 py-1"></td>
+                    <td key={code} className="px-3 py-3"></td>
                   ))}
-                  <td className="pr-3 py-1"></td>
-                  <td className="pr-3 py-1"></td>
-                  <td className="pr-3 py-1"></td>
-                  <td className="pr-3 py-1"></td>
+                  <td className="px-3 py-3"></td>
+                  <td className="px-3 py-3"></td>
+                  <td className="px-3 py-3"></td>
+                  <td className="px-3 py-3"></td>
                 </tr>
               );
             }
@@ -79,16 +79,16 @@ function BlocDirection({
             const taux = mode === "engages" ? l.tauxEngages : l.tauxReels;
             return (
               <tr key={`${l.date}-${index}`} className="border-t border-slate-100">
-                <td className="pr-3 py-1">{isoVersDdmmyyyy(l.date)}</td>
+                <td className="px-3 py-3">{isoVersDdmmyyyy(l.date)}</td>
                 {vue.entreprises.map((code) => (
-                  <td key={code} className="pr-3 py-1">
+                  <td key={code} className="px-3 py-3">
                     {parEntreprise[code] ?? 0}
                   </td>
                 ))}
-                <td className="pr-3 py-1 font-medium">{total}</td>
-                <td className="pr-3 py-1">{l.stock}</td>
-                <td className="pr-3 py-1">{reste}</td>
-                <td className="pr-3 py-1">{taux != null ? `${(taux * 100).toFixed(0)} %` : ""}</td>
+                <td className="px-3 py-3 font-medium">{total}</td>
+                <td className="px-3 py-3">{l.stock}</td>
+                <td className="px-3 py-3">{reste}</td>
+                <td className="px-3 py-3">{taux != null ? `${(taux * 100).toFixed(0)} %` : ""}</td>
               </tr>
             );
           })}

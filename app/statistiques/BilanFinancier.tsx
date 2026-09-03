@@ -4,6 +4,7 @@ import {
   genererFinsDeMois,
 } from "@/lib/statistiques";
 import { isoVersDdmmyyyy } from "@/lib/dates";
+import { formatEurArrondi, couleurMontant } from "@/lib/montant";
 import ValeursInitialesModal from "./ValeursInitialesModal";
 import ConfigurerSaisonModal from "./ConfigurerSaisonModal";
 import CalculerADateBloc from "./CalculerADateBloc";
@@ -18,9 +19,6 @@ const LIGNES = [
 
 export default async function BilanFinancier() {
   const parametres = await lireParametresFinanciers();
-
-  const formatEur = (n: number | null) =>
-    n == null ? "" : n.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
 
   const sommeValeursInitiales =
     (parametres.coutsAsl ?? 0) +
@@ -103,10 +101,12 @@ export default async function BilanFinancier() {
               {LIGNES.map((ligne) => (
                 <tr key={ligne.cle} className="border-t border-slate-100">
                   <td className="px-3 py-2 font-medium">{ligne.label}</td>
-                  <td className="px-3 py-2 text-right">{formatEur(parametres[ligne.cle])}</td>
+                  <td className={`px-3 py-2 text-right ${couleurMontant(parametres[ligne.cle])}`}>
+                    {formatEurArrondi(parametres[ligne.cle])}
+                  </td>
                   {dates.map((d) => (
-                    <td key={d} className="px-3 py-2 text-right">
-                      {formatEur(parametres[ligne.cle])}
+                    <td key={d} className={`px-3 py-2 text-right ${couleurMontant(parametres[ligne.cle])}`}>
+                      {formatEurArrondi(parametres[ligne.cle])}
                     </td>
                   ))}
                 </tr>
@@ -115,21 +115,27 @@ export default async function BilanFinancier() {
                 <td className="px-3 py-2 font-medium">Ventes réalisées</td>
                 <td className="px-3 py-2"></td>
                 {dates.map((d) => (
-                  <td key={d} className="px-3 py-2 text-right">
-                    {ventesParDate.has(d) ? formatEur(ventesParDate.get(d)!) : ""}
+                  <td
+                    key={d}
+                    className={`px-3 py-2 text-right ${ventesParDate.has(d) ? couleurMontant(ventesParDate.get(d)!) : ""}`}
+                  >
+                    {ventesParDate.has(d) ? formatEurArrondi(ventesParDate.get(d)!) : ""}
                   </td>
                 ))}
               </tr>
               <tr className="border-t border-slate-200 font-semibold bg-slate-50">
                 <td className="px-3 py-2">Résultat financier</td>
                 <td className="px-3 py-2"></td>
-                {dates.map((d) => (
-                  <td key={d} className="px-3 py-2 text-right">
-                    {ventesParDate.has(d)
-                      ? formatEur(sommeValeursInitiales + ventesParDate.get(d)!)
-                      : ""}
-                  </td>
-                ))}
+                {dates.map((d) => {
+                  const resultat = ventesParDate.has(d)
+                    ? sommeValeursInitiales + ventesParDate.get(d)!
+                    : null;
+                  return (
+                    <td key={d} className={`px-3 py-2 text-right ${couleurMontant(resultat)}`}>
+                      {resultat != null ? formatEurArrondi(resultat) : ""}
+                    </td>
+                  );
+                })}
               </tr>
             </tbody>
           </table>

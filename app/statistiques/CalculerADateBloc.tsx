@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { calculerADate, CalculDateState } from "./actions";
+import { formatEurArrondi, couleurMontant } from "@/lib/montant";
 
 type Valeurs = {
   coutsAsl: number | null;
@@ -38,8 +39,7 @@ export default function CalculerADateBloc({
         ventes
       : null;
 
-  const formatEur = (n: number) =>
-    n.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
+  const formatEur = (n: number) => formatEurArrondi(n);
 
   return (
     <div className="space-y-4">
@@ -110,7 +110,7 @@ export default function CalculerADateBloc({
             <Ligne label="Ventes réalisées" valeur={ventes} formatEur={formatEur} />
             <tr className="border-t border-slate-200 font-semibold bg-slate-50">
               <td className="px-3 py-2">Résultat financier</td>
-              <td className="px-3 py-2 text-right">
+              <td className={`px-3 py-2 text-right ${couleurMontant(resultat)}`}>
                 {resultat != null ? formatEur(resultat) : ""}
               </td>
             </tr>
@@ -133,7 +133,9 @@ function Ligne({
   return (
     <tr className="border-t border-slate-100">
       <td className="px-3 py-2">{label}</td>
-      <td className="px-3 py-2 text-right">{valeur != null ? formatEur(valeur) : ""}</td>
+      <td className={`px-3 py-2 text-right ${couleurMontant(valeur)}`}>
+        {valeur != null ? formatEur(valeur) : ""}
+      </td>
     </tr>
   );
 }
