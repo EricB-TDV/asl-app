@@ -7,7 +7,7 @@ import { verifierContingentEntreprisePourAjoutPassagers } from "@/lib/rules";
 import { ddmmyyyyVersIso } from "@/lib/dates";
 import { and, eq, ne } from "drizzle-orm";
 import { safeRevalidatePath as revalidatePath } from "@/lib/safe-revalidate";
-import * as XLSX from "xlsx";
+import * as ExcelJS from "exceljs";
 
 export async function creerPassager(formData: FormData) {
   const parsed = passagerSchema.safeParse(Object.fromEntries(formData));
@@ -229,11 +229,30 @@ export async function importerPassagersCsv(formData: FormData) {
   let lignes: LigneImport[];
   try {
     const buffer = Buffer.from(await fichier.arrayBuffer());
-    const classeur = XLSX.read(buffer, { type: "buffer", cellDates: true });
-    const nomFeuille = classeur.SheetNames[0];
-    if (!nomFeuille) return { error: "Le fichier Excel ne contient aucune feuille." };
-    const feuille = classeur.Sheets[nomFeuille];
-    lignes = XLSX.utils.sheet_to_json<LigneImport>(feuille, { defval: "", raw: true });
+    const classeur = new ExcelJS.Workbook();
+    await classeur.xlsx.load(buffer as unknown as ArrayBuffer);
+    const feuille = classeur.worksheets[0];
+    if (!feuille) return { error: "Le fichier Excel ne contient aucune feuille." };
+
+    const entetes: string[] = [];
+    feuille.getRow(1).eachCell({ includeEmpty: true }, (cell, colNumber) => {
+      entetes[colNumber - 1] = String(cell.value ?? "").trim();
+    });
+
+    lignes = [];
+    feuille.eachRow((row, numeroLigne) => {
+      if (numeroLigne === 1) return; // ligne d'en-tête
+      const ligne: LigneImport = {};
+      let ligneVide = true;
+      row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+        const entete = entetes[colNumber - 1];
+        if (!entete) return;
+        const valeur = cell.value;
+        ligne[entete] = valeur instanceof Date ? valeur : (valeur ?? "");
+        if (valeur !== null && valeur !== undefined && valeur !== "") ligneVide = false;
+      });
+      if (!ligneVide) lignes.push(ligne);
+    });
   } catch {
     return { error: "Impossible de lire le fichier : ce n'est pas un fichier Excel (.xlsx) valide." };
   }

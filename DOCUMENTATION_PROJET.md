@@ -35,9 +35,9 @@ Aucun identifiant/secret n'est stocké dans ce document ni dans le dépôt — v
 - **Drizzle ORM** + **PostgreSQL** (driver `postgres` / postgres.js)
 - **Tailwind CSS** pour le style
 - **Authentification maison** : email/mot de passe (bcryptjs), session par cookie signé JWT (jose), pas de fournisseur tiers
-- **exceljs** et **xlsx** (SheetJS) pour la génération/lecture de fichiers Excel
-- **nodemailer** pour l'envoi d'email (sauvegarde quotidienne)
-- Aucun test unitaire au sens classique : un script de test end-to-end unique (`scripts/test-e2e.ts`) appelle directement les fonctions serveur (server actions) contre une vraie base PostgreSQL, couvrant toutes les règles de gestion critiques (36 scénarios au dernier état).
+- **exceljs** et **xlsx** (SheetJS) pour la génération/lecture de fichiers Excel — marquées comme dépendances externes au build (`serverExternalPackages` dans `next.config.ts`), voir section 9
+- **nodemailer** pour l'envoi d'email (sauvegarde quotidienne) — également externalisée au build
+- Aucun test unitaire au sens classique : un script de test end-to-end unique (`scripts/test-e2e.ts`) appelle directement les fonctions serveur (server actions) contre une vraie base PostgreSQL, couvrant toutes les règles de gestion critiques (57 scénarios au dernier état).
 
 ### Fichiers de repères pour un agent IA
 `AGENTS.md` et `CLAUDE.md` à la racine sont **générés automatiquement par `next dev`** (rappels sur les éventuelles nouveautés de Next.js). Ce ne sont pas des fichiers de configuration du projet à modifier.
@@ -138,7 +138,7 @@ Un fichier Excel (.xlsx, remplace l'ancien CSV) par vol, format de colonnes **im
 
 **Règle de calcul « Ventes HT »** (révisée) : pour chaque entreprise ayant un contingent sur le vol, `(contingent engagement total × prix engagement HT) + (nombre de passagers réellement enregistrés en free-sale pour cette entreprise × prix free-sale HT)`. L'engagement est facturé en totalité, qu'il soit utilisé ou non ; le free-sale n'est facturé qu'à l'usage réel. Somme sur toutes les entreprises du vol.
 
-**Onglets "Vue entreprise sièges engagés" / "Vue entreprise sièges réels"** : deux tableaux côte à côte (Aller / Retour), police normale (`text-base`, pas `text-xs`) et tableaux en pleine largeur du bloc (`w-full table-fixed`), lignes espacées (`py-3`) pour occuper tout l'espace disponible, sans contrainte de hauteur entre les deux blocs. Une ligne par date. **Les deux tableaux partagent un axe de dates commun** (union triée des dates aller et retour) : une case reste vide côté aller (ou retour) si aucun vol n'existe à cette date dans ce sens, pour que l'aller et le retour d'une même date restent alignés sur la même ligne. Une colonne par entreprise ayant un contingent dans ce sens, **identifiée par son code 3 lettres** (pas son nom complet, pour limiter la largeur), plus Total / Stock / Reste / %. Réutilisent la même fonction de calcul (`calculerVuesParEntreprise`), seule la métrique affichée diffère :
+**Onglets "Vue entreprise sièges engagés" / "Vue entreprise sièges réels"** : deux tableaux côte à côte (Aller / Retour), police normale (`text-base`, pas `text-xs`) et tableaux en pleine largeur du bloc (`w-full`, colonnes dimensionnées automatiquement selon leur contenu — **ne pas utiliser `table-fixed`**, voir section 9), lignes espacées (`py-3`) pour occuper tout l'espace disponible, sans contrainte de hauteur entre les deux blocs. Une ligne par date. **Les deux tableaux partagent un axe de dates commun** (union triée des dates aller et retour) : une case reste vide côté aller (ou retour) si aucun vol n'existe à cette date dans ce sens, pour que l'aller et le retour d'une même date restent alignés sur la même ligne. Une colonne par entreprise ayant un contingent dans ce sens, **identifiée par son code 3 lettres** (pas son nom complet, pour limiter la largeur), plus Total / Stock / Reste / %. Réutilisent la même fonction de calcul (`calculerVuesParEntreprise`), seule la métrique affichée diffère :
 - *Sièges engagés* par entreprise = contingent engagement total de l'entreprise + ses passagers free-sale réellement enregistrés
 - *Sièges réels* par entreprise = tous ses passagers réellement enregistrés (engagement + free-sale)
 
@@ -246,6 +246,11 @@ Ces évolutions ont été demandées et livrées après les premiers tests utili
 7. Colonnes du tableau d'assignations stocks : itérées deux fois (Occupés/% abandonné au profit de Engagement/Free sale/Reste Engagement/Reste Free sale/Reste total)
 8. Ajout de la sauvegarde quotidienne automatique par email (sections 5, 6, 7)
 9. Hébergement : Railway (proposition initiale) → **Clever Cloud** (décision finale, société française)
+10. Statistiques : passage de 1 vue unique à **4 onglets** (Vue globale, Vue entreprise sièges engagés, Vue entreprise sièges réels, Bilan financier)
+11. Ajout du **Bilan financier** (calcul économique global de l'exploitation, saisonnier et configurable)
+12. Ajout du **code entreprise sur 3 lettres**, utilisé pour abréger les colonnes des vues par entreprise
+13. Modification individuelle d'un passager (fenêtre modale), en complément de la saisie/import/suppression déjà existants
+14. Optimisation du build de production (`serverExternalPackages`) pour contenir le coût d'hébergement (voir section 9)
 
 ---
 
@@ -257,6 +262,8 @@ Ces évolutions ont été demandées et livrées après les premiers tests utili
 - **Erreurs PostgreSQL via Drizzle** : le code d'erreur natif (`err.code`, ex. `42P07` = table existe déjà) peut être encapsulé dans `err.cause.code` selon le point d'appel (`db.execute` vs `db.insert`/`db.select`). Toujours vérifier les deux emplacements.
 - **Server actions et remontée d'erreur à l'écran** : un formulaire utilisant une server action passée directement en `action={...}` sur un `<form>` **n'affiche pas** la valeur de retour de la fonction en cas d'erreur. Il faut passer par un composant client avec `useActionState` (ou `useTransition` + état local pour de simples boutons) pour que les messages d'erreur (anti-surbooking, etc.) soient réellement visibles par l'utilisateur. Ce piège a été rencontré trois fois (stocks, vols, comptes) avant d'être systématisé.
 - **`numero_document` nullable** : l'index unique anti-doublon en base ne protège plus contre les doublons quand ce champ est vide (PostgreSQL traite deux `NULL` comme distincts). La protection repose désormais sur des vérifications applicatives explicites (voir `app/passagers/actions.ts`).
+- **Mémoire de build sur Clever Cloud (instances XS/S)** : le build a de nouveau bloqué silencieusement (même symptôme que le point Turbopack ci-dessus) une fois l'application devenue plus volumineuse (modules Comptes, Statistiques à 4 onglets, Bilan financier). Diagnostic fait en reproduisant localement la même contrainte mémoire que Clever Cloud (`NODE_OPTIONS=--max-old-space-size=644 npm run build`, mesuré avec `/usr/bin/time -v`) : pic mesuré ~740-800 Mo. Les tentatives `experimental.webpackMemoryOptimizations` et `typescript.ignoreBuildErrors` n'ont donné aucun gain significatif. Le vrai levier : **`serverExternalPackages: ["exceljs", "xlsx", "nodemailer", "postgres"]`** dans `next.config.ts` — ces bibliothèques ne servent que côté serveur (routes d'export/import), les exclure du regroupement webpack (elles sont chargées directement depuis `node_modules` à l'exécution plutôt qu'analysées au build) a réduit le pic mémoire de ~30 % (543 Mo), suffisant pour retenir l'instance XS sans surcoût. `exceljs` (23 Mo) et `xlsx` (7,3 Mo) sont les plus grosses dépendances du projet ; réévaluer cette liste si de nouvelles bibliothèques lourdes et server-only sont ajoutées.
+- **`table-fixed` avec des colonnes de contenu très inégal (ex. dates vs codes 3 lettres) provoque un chevauchement visuel du texte**, pas un simple problème d'alignement : la classe force des largeurs de colonne strictement égales, et sans `whitespace-nowrap`, une cellule trop étroite pour son contenu déborde visuellement sur la cellule suivante au lieu de s'agrandir ou de passer à la ligne proprement. Pour un tableau aux colonnes de largeurs naturellement très différentes, préférer un dimensionnement automatique (`w-full` sans `table-fixed`) avec `whitespace-nowrap` sur toutes les cellules.
 
 ---
 

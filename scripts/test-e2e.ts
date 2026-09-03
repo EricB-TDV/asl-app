@@ -13,7 +13,23 @@ import { creerUtilisateur, supprimerUtilisateur } from "../app/utilisateurs/acti
 import { calculerStatistiquesConsolidees, calculerVuesParEntreprise } from "../lib/statistiques";
 import { eq, and, ne } from "drizzle-orm";
 import { sql } from "drizzle-orm";
-import fs from "fs";
+import * as ExcelJS from "exceljs";
+
+/** Génère un fichier Excel (.xlsx) en mémoire à partir de lignes de données, pour les tests d'import. */
+async function genererFichierExcelTest(
+  entetes: string[],
+  lignesDeDonnees: (string | number)[][],
+  nomFichier: string
+): Promise<File> {
+  const classeur = new ExcelJS.Workbook();
+  const feuille = classeur.addWorksheet("Coupons");
+  feuille.addRow(entetes);
+  for (const ligne of lignesDeDonnees) feuille.addRow(ligne);
+  const buffer = await classeur.xlsx.writeBuffer();
+  return new File([buffer], nomFichier, {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+}
 
 let nbOk = 0;
 let nbKo = 0;
@@ -178,11 +194,19 @@ async function main() {
     prixFreeSaleHt: "300",
   });
 
-  const cheminExcel = "/tmp/test_import.xlsx";
-  const bufferExcel = fs.readFileSync(cheminExcel);
-  const fichierValide = new File([bufferExcel], "test.xlsx", {
-    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  });
+  const fichierValide = await genererFichierExcelTest(
+    [
+      "SeatType", "CivilityCode", "Surname", "Firstname", "BirthDate", "BookingNumber",
+      "Gender", "NationalityCountryCode", "DocumentType", "DocumentNumber",
+      "DocumentIssuingCountryCode", "DocumentIssuanceDate", "DocumentExpiryDate",
+      "PassengerEmail", "PassengerPhone", "SeatRow",
+    ],
+    [
+      ["Engagement", "MR", "MARTIN", "Paul", "15/03/1975", "", "M", "FR", "PP", "Y7654321", "FR", "", "12/06/2031", "", "", ""],
+      ["Free-sale", "MRS", "DURAND", "Alice", "22/07/1990", "", "F", "FR", "PP", "Y7654322", "FR", "", "05/09/2032", "", "", ""],
+    ],
+    "test.xlsx"
+  );
   const fdImportOk = new FormData();
   fdImportOk.set("volId", String(vol2Res.id));
   fdImportOk.set("entrepriseId", String(entreprise.id));
@@ -206,11 +230,19 @@ async function main() {
   );
 
   console.log("\n--- 12. Import Excel invalide (champ obligatoire manquant + date invalide) ---");
-  const csvInvalide = [
-    "SeatType,CivilityCode,Surname,Firstname,BirthDate,BookingNumber,Gender,NationalityCountryCode,DocumentType,DocumentNumber,DocumentIssuingCountryCode,DocumentIssuanceDate,DocumentExpiryDate,PassengerEmail,PassengerPhone,SeatRow",
-    "Engagement,MR,,Robert,31-12-1980,,M,FR,PP,Z0000001,FR,,2031-01-01,,,",
-  ].join("\n");
-  const fichierInvalide = new File([csvInvalide], "test-invalide.csv", { type: "text/csv" });
+  const fichierInvalide = await genererFichierExcelTest(
+    [
+      "SeatType", "CivilityCode", "Surname", "Firstname", "BirthDate", "BookingNumber",
+      "Gender", "NationalityCountryCode", "DocumentType", "DocumentNumber",
+      "DocumentIssuingCountryCode", "DocumentIssuanceDate", "DocumentExpiryDate",
+      "PassengerEmail", "PassengerPhone", "SeatRow",
+    ],
+    [
+      // Surname manquant, BirthDate au mauvais format (attendu JJ/MM/AAAA)
+      ["Engagement", "MR", "", "Robert", "31-12-1980", "", "M", "FR", "PP", "Z0000001", "FR", "", "01/01/2031", "", "", ""],
+    ],
+    "test-invalide.xlsx"
+  );
   const fdImportKo = new FormData();
   fdImportKo.set("volId", String(vol2Res.id));
   fdImportKo.set("entrepriseId", String(entreprise.id));
@@ -454,12 +486,19 @@ async function main() {
 
   // Un nouvel import pour la même entreprise/vol doit tout remplacer : les 3
   // existants (dont le manuel) disparaissent, seuls les 2 du nouveau fichier restent.
-  const csvReimport = [
-    "SeatType,CivilityCode,Surname,Firstname,BirthDate,BookingNumber,Gender,NationalityCountryCode,DocumentType,DocumentNumber,DocumentIssuingCountryCode,DocumentIssuanceDate,DocumentExpiryDate,PassengerEmail,PassengerPhone,SeatRow",
-    "Engagement,MR,NOUVEAU,Un,10/10/1980,,M,FR,PP,,FR,,,,,",
-    "Engagement,MR,NOUVEAU,Deux,11/11/1981,,M,FR,PP,,FR,,,,,",
-  ].join("\n");
-  const fichierReimport = new File([csvReimport], "reimport.csv", { type: "text/csv" });
+  const fichierReimport = await genererFichierExcelTest(
+    [
+      "SeatType", "CivilityCode", "Surname", "Firstname", "BirthDate", "BookingNumber",
+      "Gender", "NationalityCountryCode", "DocumentType", "DocumentNumber",
+      "DocumentIssuingCountryCode", "DocumentIssuanceDate", "DocumentExpiryDate",
+      "PassengerEmail", "PassengerPhone", "SeatRow",
+    ],
+    [
+      ["Engagement", "MR", "NOUVEAU", "Un", "10/10/1980", "", "M", "FR", "PP", "", "FR", "", "", "", "", ""],
+      ["Engagement", "MR", "NOUVEAU", "Deux", "11/11/1981", "", "M", "FR", "PP", "", "FR", "", "", "", "", ""],
+    ],
+    "reimport.xlsx"
+  );
   const fdReimport = new FormData();
   fdReimport.set("volId", String(vol2Res.id));
   fdReimport.set("entrepriseId", String(entreprise.id));
