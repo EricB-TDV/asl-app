@@ -40,19 +40,19 @@ function BlocDirection({
   return (
     <div className="bg-white border border-slate-200 rounded-lg p-4">
       <h3 className="font-semibold text-base mb-3">{titre}</h3>
-      <table className="w-full table-fixed text-base">
+      <table className="w-full text-base">
         <thead>
           <tr className="text-slate-500">
-            <th className="text-left px-3 py-3">Date</th>
+            <th className="text-left px-3 py-3 whitespace-nowrap">Date</th>
             {vue.entreprises.map((code) => (
-              <th key={code} className="text-left px-3 py-3">
+              <th key={code} className="text-left px-3 py-3 whitespace-nowrap">
                 {code}
               </th>
             ))}
-            <th className="text-left px-3 py-3">Total</th>
-            <th className="text-left px-3 py-3">Stock</th>
-            <th className="text-left px-3 py-3">Reste</th>
-            <th className="text-left px-3 py-3">%</th>
+            <th className="text-left px-3 py-3 whitespace-nowrap">Total</th>
+            <th className="text-left px-3 py-3 whitespace-nowrap">Stock</th>
+            <th className="text-left px-3 py-3 whitespace-nowrap">Reste</th>
+            <th className="text-left px-3 py-3 whitespace-nowrap">%</th>
           </tr>
         </thead>
         <tbody>
@@ -62,7 +62,7 @@ function BlocDirection({
               // avec l'autre sens (aller/retour).
               return (
                 <tr key={`${l.date}-${index}`} className="border-t border-slate-100 text-slate-300">
-                  <td className="px-3 py-3">{isoVersDdmmyyyy(l.date)}</td>
+                  <td className="px-3 py-3 whitespace-nowrap">{isoVersDdmmyyyy(l.date)}</td>
                   {vue.entreprises.map((code) => (
                     <td key={code} className="px-3 py-3"></td>
                   ))}
@@ -79,16 +79,16 @@ function BlocDirection({
             const taux = mode === "engages" ? l.tauxEngages : l.tauxReels;
             return (
               <tr key={`${l.date}-${index}`} className="border-t border-slate-100">
-                <td className="px-3 py-3">{isoVersDdmmyyyy(l.date)}</td>
+                <td className="px-3 py-3 whitespace-nowrap">{isoVersDdmmyyyy(l.date)}</td>
                 {vue.entreprises.map((code) => (
-                  <td key={code} className="px-3 py-3">
+                  <td key={code} className="px-3 py-3 whitespace-nowrap">
                     {parEntreprise[code] ?? 0}
                   </td>
                 ))}
-                <td className="px-3 py-3 font-medium">{total}</td>
-                <td className="px-3 py-3">{l.stock}</td>
-                <td className="px-3 py-3">{reste}</td>
-                <td className="px-3 py-3">{taux != null ? `${(taux * 100).toFixed(0)} %` : ""}</td>
+                <td className="px-3 py-3 font-medium whitespace-nowrap">{total}</td>
+                <td className="px-3 py-3 whitespace-nowrap">{l.stock}</td>
+                <td className="px-3 py-3 whitespace-nowrap">{reste}</td>
+                <td className="px-3 py-3 whitespace-nowrap">{taux != null ? `${(taux * 100).toFixed(0)} %` : ""}</td>
               </tr>
             );
           })}
