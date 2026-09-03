@@ -24,9 +24,12 @@ export default function CalculerADateBloc({
     date: valeurInitiale.date,
   };
   const [state, formAction, isPending] = useActionState(calculerADate, etatInitial);
-  // Modification 2 : suit la date actuellement affichée pour proposer un
-  // export Excel cohérent avec le calcul visible à l'écran.
-  const [dateAffichee, setDateAffichee] = useState(valeurInitiale.date);
+  // Champ contrôlé : nécessaire pour conserver la date saisie par
+  // l'utilisateur. Sans cela, React réinitialise automatiquement les champs
+  // non contrôlés d'un formulaire après l'exécution de son action serveur,
+  // ce qui écrasait la saisie de l'utilisateur en la remplaçant par la
+  // valeur initiale (date du jour).
+  const [date, setDate] = useState(valeurInitiale.date);
 
   const ventes = state?.montant ?? null;
   const resultat =
@@ -43,14 +46,7 @@ export default function CalculerADateBloc({
 
   return (
     <div className="space-y-4">
-      <form
-        action={formAction}
-        onSubmit={(e) => {
-          const date = (e.currentTarget.elements.namedItem("date") as HTMLInputElement)?.value;
-          if (date) setDateAffichee(date);
-        }}
-        className="flex items-end gap-3"
-      >
+      <form action={formAction} className="flex items-end gap-3">
         <div>
           <label className="block text-xs font-medium text-slate-600 mb-1">
             Calculer à une date
@@ -58,7 +54,8 @@ export default function CalculerADateBloc({
           <input
             type="date"
             name="date"
-            defaultValue={valeurInitiale.date}
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
             required
             className="border border-slate-300 rounded px-2 py-1.5 text-sm"
           />
@@ -70,7 +67,7 @@ export default function CalculerADateBloc({
           {isPending ? "Calcul..." : "Calculer"}
         </button>
         <a
-          href={`/api/statistiques/export-bilan?date=${dateAffichee}`}
+          href={`/api/statistiques/export-bilan?date=${date}`}
           className="bg-slate-800 text-white text-sm px-4 py-2 rounded hover:bg-slate-700"
         >
           Télécharger (Excel)
