@@ -1,6 +1,7 @@
 import { db } from "@/db";
 import { vols, passagers } from "@/db/schema";
 import { asc, sql } from "drizzle-orm";
+import { isoVersDdmmyyyy } from "@/lib/dates";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +38,7 @@ export default async function ExportPage() {
         <tbody>
           {listeVols.map((v) => (
             <tr key={v.id} className="border-t border-slate-100">
-              <td className="px-3 py-2">{v.dateDepart}</td>
+              <td className="px-3 py-2">{isoVersDdmmyyyy(v.dateDepart)}</td>
               <td className="px-3 py-2">{v.numeroVol}</td>
               <td className="px-3 py-2">
                 {v.aeroportDepart} → {v.aeroportArrivee}
