@@ -40,7 +40,8 @@ export async function calculerStatistiquesConsolidees(): Promise<{
   totalVentesHt: number;
   tauxRemplissageGlobal: number;
 }> {
-  const tousLesVols = await db.select().from(vols).orderBy(asc(vols.dateDepart));
+  // Tri : date du vol (critère 1), puis aller avant retour (critère 2, "aller" < "retour" alphabétiquement).
+  const tousLesVols = await db.select().from(vols).orderBy(asc(vols.dateDepart), asc(vols.sens));
 
   // Sièges engagement attribués (consommés), toutes entreprises confondues, par vol.
   const engagementAttribue = await db
