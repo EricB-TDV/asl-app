@@ -1,12 +1,13 @@
 import { db } from "@/db";
 import { vols, passagers } from "@/db/schema";
-import { desc, sql } from "drizzle-orm";
+import { asc, sql } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
 
 
 export default async function ExportPage() {
-  const listeVols = await db.select().from(vols).orderBy(desc(vols.dateDepart));
+  // Tri : date du vol (critère 1), puis aller avant retour (critère 2, "aller" < "retour" alphabétiquement).
+  const listeVols = await db.select().from(vols).orderBy(asc(vols.dateDepart), asc(vols.sens));
 
   const comptages = await db
     .select({ volId: passagers.volId, nb: sql<number>`count(*)` })

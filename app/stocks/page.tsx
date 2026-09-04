@@ -8,7 +8,8 @@ import { isoVersDdmmyyyy } from "@/lib/dates";
 export const dynamic = "force-dynamic";
 
 export default async function StocksPage() {
-  const listeVols = await db.select().from(vols).orderBy(asc(vols.dateDepart));
+  // Tri : date du vol (critère 1), puis aller avant retour (critère 2, "aller" < "retour" alphabétiquement).
+  const listeVols = await db.select().from(vols).orderBy(asc(vols.dateDepart), asc(vols.sens));
   const listeEntreprises = await db.select().from(entreprises).orderBy(entreprises.nom);
 
   const optionsVols = listeVols.map((v) => ({
