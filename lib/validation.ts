@@ -8,6 +8,19 @@ export const entrepriseSchema = z.object({
     .toUpperCase()
     .length(3, "Le code doit comporter exactement 3 lettres.")
     .regex(/^[A-Z]{3}$/, "Le code ne doit contenir que 3 lettres."),
+  // Champs de facturation : tous optionnels (préparation du module de facturation).
+  adresse: z.string().trim().optional().or(z.literal("")),
+  codePostal: z.string().trim().optional().or(z.literal("")),
+  ville: z.string().trim().optional().or(z.literal("")),
+  pays: z.string().trim().optional().or(z.literal("")),
+  numeroSiren: z
+    .string()
+    .trim()
+    .optional()
+    .or(z.literal(""))
+    .refine((v) => !v || /^\d+$/.test(v), "Le n° SIREN doit être un nombre entier."),
+  numeroTvaIntracommunautaire: z.string().trim().optional().or(z.literal("")),
+  identifiantFacturationElectronique: z.string().trim().optional().or(z.literal("")),
 });
 
 export const utilisateurCreationSchema = z.object({

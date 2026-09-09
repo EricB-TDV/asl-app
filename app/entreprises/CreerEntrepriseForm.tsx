@@ -43,6 +43,60 @@ export default function CreerEntrepriseForm() {
           placeholder="PAF"
         />
       </div>
+      <div className="flex-1 min-w-[220px]">
+        <label className="block text-sm font-medium text-slate-700 mb-1">Adresse</label>
+        <input
+          name="adresse"
+          className="w-full border border-slate-300 rounded px-3 py-2 text-sm"
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-slate-700 mb-1">Code postal</label>
+        <input
+          name="codePostal"
+          className="w-28 border border-slate-300 rounded px-3 py-2 text-sm"
+        />
+      </div>
+      <div className="min-w-[160px]">
+        <label className="block text-sm font-medium text-slate-700 mb-1">Ville</label>
+        <input
+          name="ville"
+          className="w-full border border-slate-300 rounded px-3 py-2 text-sm"
+        />
+      </div>
+      <div className="min-w-[160px]">
+        <label className="block text-sm font-medium text-slate-700 mb-1">Pays</label>
+        <input
+          name="pays"
+          className="w-full border border-slate-300 rounded px-3 py-2 text-sm"
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-slate-700 mb-1">N° SIREN</label>
+        <input
+          name="numeroSiren"
+          inputMode="numeric"
+          className="w-32 border border-slate-300 rounded px-3 py-2 text-sm"
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-slate-700 mb-1">
+          N° TVA intracommunautaire
+        </label>
+        <input
+          name="numeroTvaIntracommunautaire"
+          className="w-44 border border-slate-300 rounded px-3 py-2 text-sm"
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-slate-700 mb-1">
+          Identifiant facturation électronique
+        </label>
+        <input
+          name="identifiantFacturationElectronique"
+          className="w-56 border border-slate-300 rounded px-3 py-2 text-sm"
+        />
+      </div>
       <button
         disabled={isPending}
         className="bg-slate-800 text-white text-sm px-4 py-2 rounded hover:bg-slate-700 disabled:opacity-50"

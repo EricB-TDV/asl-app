@@ -6,28 +6,64 @@ import { entrepriseSchema } from "@/lib/validation";
 import { eq, sql } from "drizzle-orm";
 import { safeRevalidatePath as revalidatePath } from "@/lib/safe-revalidate";
 
-export async function creerEntreprise(formData: FormData) {
-  const parsed = entrepriseSchema.safeParse({
+function lireChampsFormulaire(formData: FormData) {
+  return {
     nom: formData.get("nom"),
     code3Lettres: formData.get("code3Lettres"),
-  });
+    // Champs optionnels : formData.get() renvoie null si le champ est absent
+    // du formulaire, or le schéma Zod optionnel n'accepte que undefined/"".
+    adresse: formData.get("adresse") ?? undefined,
+    codePostal: formData.get("codePostal") ?? undefined,
+    ville: formData.get("ville") ?? undefined,
+    pays: formData.get("pays") ?? undefined,
+    numeroSiren: formData.get("numeroSiren") ?? undefined,
+    numeroTvaIntracommunautaire: formData.get("numeroTvaIntracommunautaire") ?? undefined,
+    identifiantFacturationElectronique:
+      formData.get("identifiantFacturationElectronique") ?? undefined,
+  };
+}
+
+export async function creerEntreprise(formData: FormData) {
+  const parsed = entrepriseSchema.safeParse(lireChampsFormulaire(formData));
   if (!parsed.success) {
     return { error: parsed.error.issues[0].message };
   }
-  await db.insert(entreprises).values(parsed.data);
+  const data = parsed.data;
+  await db.insert(entreprises).values({
+    nom: data.nom,
+    code3Lettres: data.code3Lettres,
+    adresse: data.adresse || null,
+    codePostal: data.codePostal || null,
+    ville: data.ville || null,
+    pays: data.pays || null,
+    numeroSiren: data.numeroSiren ? Number(data.numeroSiren) : null,
+    numeroTvaIntracommunautaire: data.numeroTvaIntracommunautaire || null,
+    identifiantFacturationElectronique: data.identifiantFacturationElectronique || null,
+  });
   revalidatePath("/entreprises");
   return { ok: true };
 }
 
 export async function modifierEntreprise(id: number, formData: FormData) {
-  const parsed = entrepriseSchema.safeParse({
-    nom: formData.get("nom"),
-    code3Lettres: formData.get("code3Lettres"),
-  });
+  const parsed = entrepriseSchema.safeParse(lireChampsFormulaire(formData));
   if (!parsed.success) {
     return { error: parsed.error.issues[0].message };
   }
-  await db.update(entreprises).set(parsed.data).where(eq(entreprises.id, id));
+  const data = parsed.data;
+  await db
+    .update(entreprises)
+    .set({
+      nom: data.nom,
+      code3Lettres: data.code3Lettres,
+      adresse: data.adresse || null,
+      codePostal: data.codePostal || null,
+      ville: data.ville || null,
+      pays: data.pays || null,
+      numeroSiren: data.numeroSiren ? Number(data.numeroSiren) : null,
+      numeroTvaIntracommunautaire: data.numeroTvaIntracommunautaire || null,
+      identifiantFacturationElectronique: data.identifiantFacturationElectronique || null,
+    })
+    .where(eq(entreprises.id, id));
   revalidatePath("/entreprises");
   return { ok: true };
 }

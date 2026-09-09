@@ -49,6 +49,67 @@ export default async function ModifierEntreprisePage({
             className="w-24 border border-slate-300 rounded px-3 py-2 text-sm uppercase"
           />
         </div>
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">Adresse</label>
+          <input
+            name="adresse"
+            defaultValue={entreprise.adresse ?? ""}
+            className="w-full border border-slate-300 rounded px-3 py-2 text-sm"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">Code postal</label>
+          <input
+            name="codePostal"
+            defaultValue={entreprise.codePostal ?? ""}
+            className="w-28 border border-slate-300 rounded px-3 py-2 text-sm"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">Ville</label>
+          <input
+            name="ville"
+            defaultValue={entreprise.ville ?? ""}
+            className="w-full border border-slate-300 rounded px-3 py-2 text-sm"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">Pays</label>
+          <input
+            name="pays"
+            defaultValue={entreprise.pays ?? ""}
+            className="w-full border border-slate-300 rounded px-3 py-2 text-sm"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">N° SIREN</label>
+          <input
+            name="numeroSiren"
+            defaultValue={entreprise.numeroSiren ?? ""}
+            inputMode="numeric"
+            className="w-32 border border-slate-300 rounded px-3 py-2 text-sm"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">
+            N° TVA intracommunautaire
+          </label>
+          <input
+            name="numeroTvaIntracommunautaire"
+            defaultValue={entreprise.numeroTvaIntracommunautaire ?? ""}
+            className="w-full border border-slate-300 rounded px-3 py-2 text-sm"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">
+            Identifiant facturation électronique
+          </label>
+          <input
+            name="identifiantFacturationElectronique"
+            defaultValue={entreprise.identifiantFacturationElectronique ?? ""}
+            className="w-full border border-slate-300 rounded px-3 py-2 text-sm"
+          />
+        </div>
         <button className="bg-slate-800 text-white text-sm px-4 py-2 rounded hover:bg-slate-700">
           Enregistrer
         </button>

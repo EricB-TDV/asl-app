@@ -32,11 +32,21 @@ export const utilisateurs = pgTable("utilisateurs", {
 
 /**
  * Entreprise cliente (3.). Attribut unique nécessaire : le nom.
+ * Champs adresse/SIREN/TVA/facturation électronique : ajoutés en préparation
+ * du futur module de facturation, tous optionnels (à renseigner
+ * progressivement, pas de rétro-saisie imposée sur les entreprises existantes).
  */
 export const entreprises = pgTable("entreprises", {
   id: serial("id").primaryKey(),
   nom: text("nom").notNull(),
   code3Lettres: text("code_3_lettres"), // nullable en base (compat. existant), obligatoire en saisie applicative
+  adresse: text("adresse"),
+  codePostal: text("code_postal"),
+  ville: text("ville"),
+  pays: text("pays"),
+  numeroSiren: integer("numero_siren"),
+  numeroTvaIntracommunautaire: text("numero_tva_intracommunautaire"),
+  identifiantFacturationElectronique: text("identifiant_facturation_electronique"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
