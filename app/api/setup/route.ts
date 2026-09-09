@@ -83,8 +83,9 @@ export async function GET(request: NextRequest) {
         } catch (err: unknown) {
           const code =
             (err as { code?: string })?.code ?? (err as { cause?: { code?: string } })?.cause?.code;
-          // 42P07 = table existe déjà, 42710 = objet existe déjà (index, contrainte...)
-          if (code === "42P07" || code === "42710") {
+          // 42P07 = table existe déjà, 42710 = objet existe déjà (index, contrainte...),
+          // 42701 = colonne existe déjà (ALTER TABLE ... ADD COLUMN déjà appliqué).
+          if (code === "42P07" || code === "42710" || code === "42701") {
             nbIgnoreesTotal++;
           } else {
             throw err;
