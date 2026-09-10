@@ -1,0 +1,11 @@
+# Fichier Power BI binaire — utiliser le format .pbip (report/) versionné à la place
+*.pbix
+
+# Données sources réelles (potentiellement volumineuses / sensibles) : ne pas versionner
+data/source/*
+!data/source/.gitkeep
+
+# Fichiers temporaires Power BI
+*.tmp
+~$*
+.DS_Store
